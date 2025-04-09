@@ -2,9 +2,13 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { FiEye, FiEyeOff } from "react-icons/fi";
+import { useToast } from "../contexts/ToastContext";
+import { auth } from "../config/firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 
 const SignUp = () => {
   const navigate = useNavigate();
+  const { success, error: showError } = useToast();
 
   const [userType, setUserType] = useState("patient");
 
@@ -189,8 +193,16 @@ const SignUp = () => {
               cvFileName: cvFileName,
             };
 
-      console.log(userData);
-      // Make API call to backend
+      // First create the user in Firebase
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        userData.email,
+        userData.password
+      );
+
+      console.log("Firebase user created:", userCredential.user);
+
+      // Then make API call to backend
       const response = await fetch("http://localhost:5000/api/auth/signup", {
         method: "POST",
         headers: {
@@ -202,6 +214,8 @@ const SignUp = () => {
       const data = await response.json();
 
       if (!response.ok) {
+        // If backend signup fails, delete the Firebase user
+        await userCredential.user.delete();
         throw new Error(data.message || "Failed to create account");
       }
 
@@ -217,11 +231,17 @@ const SignUp = () => {
 
       // Clear form and show success
       setError("");
-      // Redirect to login page
-      navigate("/login");
+      success("Account created successfully!");
+
+      // Wait a moment to ensure Firebase auth state is updated
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Redirect to home page
+      navigate("/");
     } catch (err) {
       console.error("❌ Signup Error:", err.message);
       setError(err.message || "Failed to create account. Please try again.");
+      showError(err.message || "Failed to create account. Please try again.");
     } finally {
       setLoading(false);
     }

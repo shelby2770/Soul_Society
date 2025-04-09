@@ -4,6 +4,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   browserLocalPersistence,
+  setPersistence,
 } from "firebase/auth";
 
 const firebaseConfig = {
@@ -22,7 +23,13 @@ const analytics = getAnalytics(app);
 const auth = getAuth(app);
 
 // Set persistence to LOCAL
-auth.setPersistence(browserLocalPersistence);
+setPersistence(auth, browserLocalPersistence)
+  .then(() => {
+    console.log("Firebase persistence set to LOCAL");
+  })
+  .catch((error) => {
+    console.error("Error setting persistence:", error);
+  });
 
 // Configure Google Auth Provider
 const googleProvider = new GoogleAuthProvider();

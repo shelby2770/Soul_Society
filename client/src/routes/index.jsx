@@ -1,4 +1,5 @@
 import { createBrowserRouter } from "react-router-dom";
+import Layout from "../components/layout/Layout";
 import Home from "../pages/Home";
 import About from "../pages/About";
 import Contact from "../pages/Contact";
@@ -6,12 +7,25 @@ import NotFound from "../pages/NotFound";
 import SignUp from "../pages/SignUp";
 import Login from "../pages/Login";
 import Doctors from "../pages/Doctors";
-import Layout from "../components/layout/Layout";
+import Profile from "../pages/Profile";
+import { AuthProvider } from "../contexts/AuthContext";
+import { ToastProvider } from "../contexts/ToastContext";
+
+// Create a wrapper component that includes the AuthProvider
+const AppWithProviders = () => {
+  return (
+    <ToastProvider>
+      <AuthProvider>
+        <Layout />
+      </AuthProvider>
+    </ToastProvider>
+  );
+};
 
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: <Layout />,
+    element: <AppWithProviders />,
     children: [
       {
         index: true,
@@ -30,12 +44,16 @@ export const router = createBrowserRouter([
         element: <Doctors />,
       },
       {
+        path: "login",
+        element: <Login />,
+      },
+      {
         path: "signup",
         element: <SignUp />,
       },
       {
-        path: "login",
-        element: <Login />,
+        path: "profile",
+        element: <Profile />,
       },
       {
         path: "*",

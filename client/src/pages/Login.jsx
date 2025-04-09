@@ -4,6 +4,7 @@ import { Button } from "../components/ui/button";
 import { FcGoogle } from "react-icons/fc";
 import { auth, googleProvider } from "../config/firebase";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
+import { useToast } from "../contexts/ToastContext";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -12,6 +13,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [showPopupInstructions, setShowPopupInstructions] = useState(false);
   const navigate = useNavigate();
+  const { success, error: showError } = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,9 +21,13 @@ const Login = () => {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigate("/dashboard");
+      success("Login successful!");
+      setTimeout(() => {
+        navigate("/");
+      }, 1000);
     } catch (error) {
       setError(error.message);
+      showError("Login failed. Please check your credentials.");
     } finally {
       setLoading(false);
     }
@@ -43,7 +49,10 @@ const Login = () => {
 
       const result = await signInWithPopup(auth, googleProvider);
       if (result.user) {
-        navigate("/dashboard");
+        success("Login successful!");
+        setTimeout(() => {
+          navigate("/");
+        }, 1000);
       }
     } catch (error) {
       console.error("Google Sign-In Error Details:", {
@@ -67,6 +76,7 @@ const Login = () => {
       }
 
       setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
