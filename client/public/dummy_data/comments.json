@@ -3,31 +3,31 @@
     {
       "id": 1,
       "name": "Md. Faisal Karim",
-      "date": "January 7, 2023",
+      "date": "2 days ago",
       "rating": 5,
-      "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Md.FaisalKarim",
-      "text": "I've been seeing Dr. Ashfaq Hasan for a few months now, and it's been a really positive experience. He's easy to talk to, and I feel like he listens and understands my concerns. I would definitely recommend him to others.",
-      "likes": 2,
+      "image": "/images/avatar1.png",
+      "text": "Dr. Smith was incredibly helpful. She took the time to understand my concerns and provided practical solutions. The video consultation was smooth and professional.",
+      "likes": 12,
       "dislikes": 0
     },
     {
       "id": 2,
       "name": "Shamima Akter",
-      "date": "February 22, 2023",
+      "date": "1 week ago",
       "rating": 4,
-      "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=ShamimaAkter",
-      "text": "I've only had a few sessions with Dr. Tanjina Sultana, but so far, I'm happy with the care I've received. She's professional and knowledgeable, and I appreciate her direct approach to therapy.",
-      "likes": 1,
-      "dislikes": 0
+      "image": "/images/avatar2.png",
+      "text": "I was skeptical about online therapy at first, but Dr. Johnson made me feel comfortable right away. The platform is easy to use and the sessions are just as effective as in-person visits.",
+      "likes": 8,
+      "dislikes": 1
     },
     {
       "id": 3,
       "name": "Tanvir Hasan Rafi",
-      "date": "March 1, 2023",
-      "rating": 3,
-      "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=TanvirHasanRafi",
-      "text": "My experience with Dr. Imran Kabir has been mixed. There are times when I feel like he's really engaged and helpful, but other times, it seems like he's distracted or disinterested. I'm not sure if I would recommend him.",
-      "likes": 0,
+      "date": "2 weeks ago",
+      "rating": 5,
+      "image": "/images/avatar3.png",
+      "text": "The convenience of being able to schedule appointments and attend sessions from home has been a game-changer for me. Dr. Williams is knowledgeable and caring.",
+      "likes": 15,
       "dislikes": 0
     }
   ]

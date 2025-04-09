@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
-import { Search } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const Home = () => {
@@ -10,7 +9,7 @@ const Home = () => {
 
   useEffect(() => {
     // Fetch doctors data
-    fetch("/data/doctors.json")
+    fetch("/dummy_data/doctors.json")
       .then((response) => {
         if (!response.ok) {
           throw new Error("Network response was not ok");
@@ -24,29 +23,6 @@ const Home = () => {
       })
       .catch((error) => {
         console.error("Error fetching doctors:", error);
-        // Set some default data in case of error
-        setDoctors([
-          {
-            id: 1,
-            name: "Dr. Arefin Rahman",
-            specialty: "Psychiatrist",
-            rating: 5.0,
-            experience: "15 years",
-            image:
-              "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&q=80",
-            reviews: 1000,
-          },
-          {
-            id: 2,
-            name: "Dr. Nusrat Jahan",
-            specialty: "Therapist",
-            rating: 4.3,
-            experience: "12 years",
-            image:
-              "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&q=80",
-            reviews: 300,
-          },
-        ]);
       });
 
     // Fetch comments data
@@ -64,31 +40,6 @@ const Home = () => {
       })
       .catch((error) => {
         console.error("Error fetching comments:", error);
-        // Set some default data in case of error
-        setComments([
-          {
-            id: 1,
-            name: "Md. Faisal Karim",
-            date: "January 7, 2023",
-            rating: 5,
-            image:
-              "https://api.dicebear.com/7.x/avataaars/svg?seed=Md.FaisalKarim",
-            text: "I've been seeing Dr. Ashfaq Hasan for a few months now, and it's been a really positive experience. He's easy to talk to, and I feel like he listens and understands my concerns. I would definitely recommend him to others.",
-            likes: 2,
-            dislikes: 0,
-          },
-          {
-            id: 2,
-            name: "Shamima Akter",
-            date: "February 22, 2023",
-            rating: 4,
-            image:
-              "https://api.dicebear.com/7.x/avataaars/svg?seed=ShamimaAkter",
-            text: "I've only had a few sessions with Dr. Tanjina Sultana, but so far, I'm happy with the care I've received. She's professional and knowledgeable, and I appreciate her direct approach to therapy.",
-            likes: 1,
-            dislikes: 0,
-          },
-        ]);
       });
   }, []);
 
