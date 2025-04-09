@@ -4,13 +4,40 @@ import { useState, useEffect } from "react";
 import LoginModal from "../modals/LoginModal";
 import { useAuth } from "../../contexts/AuthContext";
 import { FiUser, FiLogOut } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 
 const Navbar = () => {
-  const { user, signOut } = useAuth();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const { user, userData, signOut, fetchUserData } = useAuth();
+
+  // console.log(user, user.email);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+
+    const loadInitialData = async () => {
+      setLoading(true);
+      try {
+        if (user.email) {
+          await fetchUserData(user.email);
+        }
+      } catch (error) {
+        console.error("Error loading user data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInitialData();
+  }, [user, navigate]);
 
   // Debug output for auth state changes
   useEffect(() => {
@@ -89,17 +116,30 @@ const Navbar = () => {
             >
               About
             </Link>
-            <Link
-              to="/doctors"
-              className={`text-sm transition-colors h-10 leading-loose ${
-                location.pathname === "/doctors"
-                  ? "text-blue-700 font-medium"
-                  : "text-gray-900 hover:text-blue-600"
-              }`}
-              onClick={handleDoctorsClick}
-            >
-              Doctors
-            </Link>
+            {user && userData?.type === "doctor" ? (
+              <Link
+                to="/assigned-patients"
+                className={`text-sm transition-colors h-10 leading-loose ${
+                  location.pathname === "/assigned-patients"
+                    ? "text-blue-700 font-medium"
+                    : "text-gray-900 hover:text-blue-600"
+                }`}
+              >
+                Assigned Patients
+              </Link>
+            ) : (
+              <Link
+                to="/doctors"
+                className={`text-sm transition-colors h-10 leading-loose ${
+                  location.pathname === "/doctors"
+                    ? "text-blue-700 font-medium"
+                    : "text-gray-900 hover:text-blue-600"
+                }`}
+                onClick={handleDoctorsClick}
+              >
+                Find a Doctor
+              </Link>
+            )}
             <Link
               to="/contact"
               className={`text-sm transition-colors h-10 leading-loose ${
@@ -290,20 +330,34 @@ const Navbar = () => {
               >
                 About
               </Link>
-              <Link
-                to="/doctors"
-                className={`block px-3 py-2 rounded-md text-base font-medium ${
-                  location.pathname === "/doctors"
-                    ? "text-blue-700 bg-blue-50"
-                    : "text-gray-900 hover:text-blue-600 hover:bg-gray-50"
-                }`}
-                onClick={(e) => {
-                  handleDoctorsClick(e);
-                  setIsMenuOpen(false);
-                }}
-              >
-                Doctors
-              </Link>
+              {user && userData?.type === "doctor" ? (
+                <Link
+                  to="/assigned-patients"
+                  className={`block px-3 py-2 rounded-md text-base font-medium ${
+                    location.pathname === "/assigned-patients"
+                      ? "text-blue-700 bg-blue-50"
+                      : "text-gray-900 hover:text-blue-600 hover:bg-gray-50"
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Assigned Patients
+                </Link>
+              ) : (
+                <Link
+                  to="/doctors"
+                  className={`block px-3 py-2 rounded-md text-base font-medium ${
+                    location.pathname === "/doctors"
+                      ? "text-blue-700 bg-blue-50"
+                      : "text-gray-900 hover:text-blue-600 hover:bg-gray-50"
+                  }`}
+                  onClick={(e) => {
+                    handleDoctorsClick(e);
+                    setIsMenuOpen(false);
+                  }}
+                >
+                  Find a Doctor
+                </Link>
+              )}
               <Link
                 to="/contact"
                 className={`block px-3 py-2 rounded-md text-base font-medium ${

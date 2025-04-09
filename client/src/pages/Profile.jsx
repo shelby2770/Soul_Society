@@ -15,6 +15,7 @@ const Profile = () => {
     updateUserPassword,
     fetchUserData,
   } = useAuth();
+  // console.log(user, user.email);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [activeTab, setActiveTab] = useState("info");
@@ -53,7 +54,7 @@ const Profile = () => {
     };
 
     loadInitialData();
-  }, [user, navigate]); // Remove fetchUserData from dependencies
+  }, [user, navigate]); 
 
   // Update form fields when userData changes
   useEffect(() => {
@@ -61,7 +62,6 @@ const Profile = () => {
       setDisplayName(userData.name || "");
     }
   }, [userData]);
-
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
