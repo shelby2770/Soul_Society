@@ -381,10 +381,10 @@ const Home = () => {
                   ))}
                 </div>
                 <p className="text-gray-700">{comment.text}</p>
-                <div className="flex items-center mt-4 text-gray-500">
-                  <button className="flex items-center mr-4">
+                <div className="flex items-center space-x-6 mt-4 text-gray-500">
+                  <button className="flex items-center space-x-2 hover:text-blue-600 transition-colors">
                     <svg
-                      className="w-4 h-4 mr-1"
+                      className="w-5 h-5"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -397,11 +397,11 @@ const Home = () => {
                         d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"
                       ></path>
                     </svg>
-                    {comment.likes}
+                    <span>{comment.likes}</span>
                   </button>
-                  <button className="flex items-center">
+                  <button className="flex items-center space-x-2 hover:text-red-600 transition-colors">
                     <svg
-                      className="w-4 h-4 mr-1"
+                      className="w-5 h-5"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -414,7 +414,7 @@ const Home = () => {
                         d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.905 0-.714.211-1.412.608-2.006L17 13V4m-7 10h2"
                       ></path>
                     </svg>
-                    {comment.dislikes}
+                    <span>{comment.dislikes}</span>
                   </button>
                 </div>
               </div>
