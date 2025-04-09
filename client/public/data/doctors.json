@@ -1,0 +1,49 @@
+{
+  "doctors": [
+    {
+      "id": 1,
+      "name": "Dr. Arefin Rahman",
+      "specialty": "Psychiatrist",
+      "rating": 5.0,
+      "experience": "15 years",
+      "image": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&q=80",
+      "reviews": 1000
+    },
+    {
+      "id": 2,
+      "name": "Dr. Nusrat Jahan",
+      "specialty": "Therapist",
+      "rating": 4.3,
+      "experience": "12 years",
+      "image": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&q=80",
+      "reviews": 300
+    },
+    {
+      "id": 3,
+      "name": "Dr. Tahmid Hossain",
+      "specialty": "Depression Counselor",
+      "rating": 4.8,
+      "experience": "10 years",
+      "image": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80",
+      "reviews": 300
+    },
+    {
+      "id": 4,
+      "name": "Dr. Farzana Akter",
+      "specialty": "Life Coach",
+      "rating": 4.7,
+      "experience": "14 years",
+      "image": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&q=80",
+      "reviews": 700
+    },
+    {
+      "id": 5,
+      "name": "Dr. Mahbub Alam",
+      "specialty": "Psychologist",
+      "rating": 4.6,
+      "experience": "11 years",
+      "image": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&q=80",
+      "reviews": 400
+    }
+  ]
+}

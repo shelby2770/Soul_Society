@@ -1,15 +1,15 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
-import "./App.css";
-
+import { Outlet } from "react-router-dom";
+import Navbar from "./components/layout/Navbar";
+import Footer from "./components/layout/Footer";
 function App() {
   return (
-    <>
-      <div>
-        <h1 className="text-3xl font-bold underline bg-red-500">Hello World</h1>
-      </div>
-    </>
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      <main>
+        <Outlet />
+      </main>
+      <Footer />
+    </div>
   );
 }
 
