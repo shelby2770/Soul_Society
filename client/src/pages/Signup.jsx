@@ -264,13 +264,11 @@ const SignUp = () => {
 
     let password = "";
 
-    // Ensure at least one of each required character type
     password +=
       uppercaseChars[Math.floor(Math.random() * uppercaseChars.length)];
     password +=
       lowercaseChars[Math.floor(Math.random() * lowercaseChars.length)];
 
-    // Add required numbers
     if (userType === "doctor") {
       password += numberChars[Math.floor(Math.random() * numberChars.length)];
       password += numberChars[Math.floor(Math.random() * numberChars.length)];
@@ -278,7 +276,6 @@ const SignUp = () => {
       password += numberChars[Math.floor(Math.random() * numberChars.length)];
     }
 
-    // Add required special characters
     if (userType === "doctor") {
       password += specialChars[Math.floor(Math.random() * specialChars.length)];
       password += specialChars[Math.floor(Math.random() * specialChars.length)];
@@ -286,7 +283,6 @@ const SignUp = () => {
       password += specialChars[Math.floor(Math.random() * specialChars.length)];
     }
 
-    // Fill the rest with random characters
     const allChars =
       uppercaseChars + lowercaseChars + numberChars + specialChars;
     const remainingLength = length - password.length;

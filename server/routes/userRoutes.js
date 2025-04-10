@@ -3,6 +3,48 @@ import User from "../models/User.js";
 
 const router = express.Router();
 
+// Get all users
+router.get("/all", async (req, res) => {
+  try {
+    const users = await User.find().select("name email type");
+
+    res.json({
+      success: true,
+      users: users.map((user) => ({
+        name: user.name,
+        email: user.email,
+        type: user.type,
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching users",
+    });
+  }
+});
+
+// Get all doctors
+router.get("/doctors", async (req, res) => {
+  try {
+    const doctors = await User.find({ type: "doctor" }).select(
+      "name email specialization"
+    );
+
+    res.json({
+      success: true,
+      doctors,
+    });
+  } catch (error) {
+    console.error("Error fetching doctors:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching doctors",
+    });
+  }
+});
+
 // Get user by email
 router.get("/email/:email", async (req, res) => {
   try {
@@ -76,6 +118,36 @@ router.put("/email/:email", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error updating user data",
+    });
+  }
+});
+
+// Get patients assigned to a doctor
+router.get("/doctor/:email/patients", async (req, res) => {
+  try {
+    const { email } = req.params;
+    const doctor = await User.findOne({ email, type: "doctor" });
+
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: "Doctor not found",
+      });
+    }
+
+    // For now, return all users with type "patient"
+    // TODO: Update this when implementing actual patient assignments
+    const patients = await User.find({ type: "patient" }).select("name email");
+
+    res.json({
+      success: true,
+      patients,
+    });
+  } catch (error) {
+    console.error("Error fetching patients:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching patients",
     });
   }
 });
