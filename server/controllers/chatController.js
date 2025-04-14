@@ -1,4 +1,3 @@
-import Message from "../models/Message.js";
 import Conversation from "../models/Conversation.js";
 import User from "../models/User.js";
 
@@ -34,7 +33,7 @@ export const getConversations = async (req, res) => {
     })
       .populate("patient", "name email")
       .populate("doctor", "name email specialization")
-      .populate("lastMessage")
+      .populate("chatHistory.sender", "name email type")
       .sort({ lastMessageTime: -1 });
 
     res.json({
@@ -46,41 +45,6 @@ export const getConversations = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error fetching conversations",
-    });
-  }
-};
-
-// Get all messages in a conversation between a patient and a doctor
-export const getMessages = async (req, res) => {
-  try {
-    const { conversationId } = req.params;
-
-    // Verify conversation exists
-    const conversation = await Conversation.findById(conversationId);
-    if (!conversation) {
-      return res.status(404).json({
-        success: false,
-        message: "Conversation not found",
-      });
-    }
-
-    // Find all messages in the conversation
-    const messages = await Message.find({
-      $or: [
-        { sender: conversation.patient, receiver: conversation.doctor },
-        { sender: conversation.doctor, receiver: conversation.patient },
-      ],
-    }).sort({ createdAt: 1 });
-
-    res.json({
-      success: true,
-      messages,
-    });
-  } catch (error) {
-    console.error("Error fetching messages:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error fetching messages",
     });
   }
 };
@@ -154,14 +118,13 @@ export const sendMessage = async (req, res) => {
     const patient = sender.type === "patient" ? sender : receiver;
     const doctor = sender.type === "doctor" ? sender : receiver;
 
-    // Create the message
-    const message = new Message({
-      sender: sender._id, // Use MongoDB ID
-      receiver: receiver._id,
+    // Create a new message object
+    const newMessage = {
+      sender: sender._id,
       content,
-    });
-
-    await message.save();
+      createdAt: new Date(),
+      read: false,
+    };
 
     // Find or create a conversation
     let conversation = await Conversation.findOne({
@@ -170,15 +133,19 @@ export const sendMessage = async (req, res) => {
     });
 
     if (!conversation) {
+      // Create new conversation with this message
       conversation = new Conversation({
         patient: patient._id,
         doctor: doctor._id,
-        lastMessage: message._id,
-        lastMessageTime: message.createdAt,
+        chatHistory: [newMessage],
+        lastMessage: content,
+        lastMessageTime: newMessage.createdAt,
       });
     } else {
-      conversation.lastMessage = message._id;
-      conversation.lastMessageTime = message.createdAt;
+      // Add the message to existing conversation
+      conversation.chatHistory.push(newMessage);
+      conversation.lastMessage = content;
+      conversation.lastMessageTime = newMessage.createdAt;
     }
 
     await conversation.save();
@@ -187,21 +154,30 @@ export const sendMessage = async (req, res) => {
     const populatedConversation = await Conversation.findById(conversation._id)
       .populate("patient", "name email")
       .populate("doctor", "name email specialization")
-      .populate("lastMessage");
+      .populate("chatHistory.sender", "name email type");
 
-    console.log("Message saved successfully:", message);
-    console.log("Conversation updated:", populatedConversation);
+    // Get the message we just added (the last one in the chat history)
+    const addedMessage =
+      populatedConversation.chatHistory[
+        populatedConversation.chatHistory.length - 1
+      ];
+
+    console.log("Message saved successfully:", addedMessage);
+    console.log(
+      "Conversation updated with new message content:",
+      populatedConversation.lastMessage
+    );
 
     res.status(201).json({
       success: true,
-      message,
+      message: addedMessage,
       conversation: populatedConversation,
     });
   } catch (error) {
     console.error("Error sending message:", error);
     res.status(500).json({
       success: false,
-      message: "Error sending message",
+      message: "Error sending message: " + error.message,
     });
   }
 };
@@ -265,37 +241,116 @@ export const markMessagesAsRead = async (req, res) => {
       });
     }
 
-    // Determine the other user in the conversation
-    const otherUserId =
-      userIdStr === patientIdStr ? conversation.doctor : conversation.patient;
-    console.log(`Other user ID: ${otherUserId}`);
+    // Determine the other user ID
+    const otherUserId = userIdStr === patientIdStr ? doctorIdStr : patientIdStr;
 
-    // Mark all unread messages from the other user as read
-    const updateResult = await Message.updateMany(
-      {
-        sender: otherUserId,
-        receiver: user._id,
-        read: false,
-      },
-      {
-        read: true,
+    // Mark unread messages from the other user as read within this conversation
+    let updateCount = 0;
+
+    // Update messages in the chatHistory array
+    for (let i = 0; i < conversation.chatHistory.length; i++) {
+      const msg = conversation.chatHistory[i];
+      if (msg.sender.toString() === otherUserId && !msg.read) {
+        conversation.chatHistory[i].read = true;
+        updateCount++;
       }
-    );
+    }
 
-    console.log(
-      `Updated ${updateResult.modifiedCount} messages to read status`
-    );
+    await conversation.save();
+
+    console.log(`Updated ${updateCount} messages to read status`);
 
     res.json({
       success: true,
       message: "Messages marked as read",
-      updates: updateResult.modifiedCount,
+      updates: updateCount,
     });
   } catch (error) {
     console.error("Error marking messages as read:", error);
     res.status(500).json({
       success: false,
       message: "Error marking messages as read: " + error.message,
+    });
+  }
+};
+
+// Get conversation between two specific users
+export const getConversationBetweenUsers = async (req, res) => {
+  try {
+    const { userId1, userId2 } = req.params;
+    console.log(
+      `Fetching conversation between users ${userId1} and ${userId2}`
+    );
+
+    // Find both users to determine which is patient and which is doctor
+    const [user1, user2] = await Promise.all([
+      User.findById(userId1),
+      User.findById(userId2),
+    ]);
+
+    if (!user1 || !user2) {
+      console.log(`One or both users not found: ${userId1}, ${userId2}`);
+      return res.status(404).json({
+        success: false,
+        message: "One or both users not found",
+      });
+    }
+
+    console.log(
+      `User1: ${user1.name} (${user1.type}), User2: ${user2.name} (${user2.type})`
+    );
+
+    // Determine which user is the patient and which is the doctor
+    let patientId, doctorId;
+
+    if (user1.type === "patient" && user2.type === "doctor") {
+      patientId = user1._id;
+      doctorId = user2._id;
+    } else if (user1.type === "doctor" && user2.type === "patient") {
+      patientId = user2._id;
+      doctorId = user1._id;
+    } else {
+      console.log(`Invalid user types: ${user1.type}, ${user2.type}`);
+      return res.status(400).json({
+        success: false,
+        message: "Conversation must be between a patient and a doctor",
+      });
+    }
+
+    // Find the conversation between these users
+    const conversation = await Conversation.findOne({
+      patient: patientId,
+      doctor: doctorId,
+    })
+      .populate("patient", "name email")
+      .populate("doctor", "name email specialization")
+      .populate("chatHistory.sender", "name email type");
+
+    if (!conversation) {
+      // If no conversation exists yet, return success but with empty conversation
+      console.log(
+        `No conversation found between patient ${patientId} and doctor ${doctorId}`
+      );
+      return res.json({
+        success: true,
+        conversation: null,
+        message: "No conversation exists yet between these users",
+      });
+    }
+
+    console.log(
+      `Found conversation with ${conversation.chatHistory.length} messages`
+    );
+
+    res.json({
+      success: true,
+      conversation,
+    });
+  } catch (error) {
+    console.error("Error fetching conversation between users:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching conversation",
     });
   }
 };

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -14,7 +14,25 @@ const Chat = () => {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState([]);
+  const messagesContainerRef = useRef(null); // Ref for the messages container
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+  // Auto-scroll to bottom of messages container
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      if (messagesContainerRef.current) {
+        const container = messagesContainerRef.current;
+        container.scrollTop = container.scrollHeight;
+      }
+    }, 100);
+  };
+
+  // Helper to set messages and trigger scroll event
+  const updateMessages = (newMessages) => {
+    setMessages(newMessages);
+    // Scroll to bottom after state update
+    scrollToBottom();
+  };
 
   useEffect(() => {
     // Redirect if not logged in
@@ -30,18 +48,34 @@ const Chat = () => {
 
         // Always use Firebase UID for API calls
         const currentUserId = user.uid;
+        console.log("Fetching conversations for user:", currentUserId);
 
         // Fetch conversations for the current user
-        const conversationsResponse = await axios
-          .get(`${API_URL}/api/chat/conversations/${currentUserId}`)
-          .catch((error) => {
-            console.log("No conversations found:", error);
-            return { data: { success: true, conversations: [] } };
-          });
+        // const conversationsResponse = await axios
+        //   .get(`${API_URL}/api/chat/conversations/${currentUserId}`)
+        //   .catch((error) => {
+        //     console.log("No conversations found:", error);
+        //     return { data: { success: true, conversations: [] } };
+        //   });
 
-        if (conversationsResponse.data.success) {
-          setConversations(conversationsResponse.data.conversations || []);
-        }
+        // console.log("Conversations API response:", conversationsResponse.data);
+
+        // if (conversationsResponse.data.success) {
+        //   const conversationsData =
+        //     conversationsResponse.data.conversations || [];
+        //   console.log("Received conversations:", conversationsData.length);
+
+        //   // Log the chat history counts for debugging
+        //   conversationsData.forEach((conv) => {
+        //     console.log(
+        //       `Conversation between ${conv.patient.name} and ${
+        //         conv.doctor.name
+        //       } has ${conv.chatHistory ? conv.chatHistory.length : 0} messages`
+        //     );
+        //   });
+
+        //   setConversations(conversationsData);
+        // }
 
         if (userData?.type === "patient") {
           // Fetch doctors for patients
@@ -53,16 +87,53 @@ const Chat = () => {
             setDoctors(response.data.doctors);
           }
         } else if (userData?.type === "doctor") {
-          // Extract patients from conversations
-          const patientsList = (
-            conversationsResponse.data.conversations || []
-          ).map((conv) => ({
-            _id: conv.patient._id,
-            name: conv.patient.name,
-            lastMessage: conv.lastMessage?.content || "",
-            lastMessageTime: conv.lastMessageTime,
-          }));
-          setPatients(patientsList);
+          // For doctors, we need to fetch patients who have texted this doctor
+          // First, get the doctor's MongoDB ID by email
+          console.log("Fetching doctor's MongoDB ID by email:", userData.email);
+          const doctorResponse = await axios.get(
+            `${API_URL}/api/users/email/${userData.email}`
+          );
+
+          if (!doctorResponse.data.success || !doctorResponse.data.user) {
+            console.error("Could not fetch doctor data");
+            setPatients([]);
+            setLoading(false);
+            return;
+          }
+
+          const doctorId = doctorResponse.data.user._id;
+          console.log("Doctor MongoDB ID:", doctorId);
+
+          // Now fetch conversations where this doctor is a participant
+          const conversationsResponse = await axios
+            .get(`${API_URL}/api/chat/conversations/${doctorId}`)
+            .catch((error) => {
+              console.log("No conversations found:", error);
+              return { data: { success: true, conversations: [] } };
+            });
+
+          console.log("Doctor's conversations:", conversationsResponse.data);
+
+          if (conversationsResponse.data.success) {
+            const conversations =
+              conversationsResponse.data.conversations || [];
+            setConversations(conversations);
+
+            // Extract unique patient IDs from these conversations
+            const patientsList = conversations.map((conv) => ({
+              _id: conv.patient._id,
+              name: conv.patient.name,
+              email: conv.patient.email,
+              lastMessage: conv.lastMessage || "",
+              lastMessageTime: conv.lastMessageTime,
+            }));
+
+            console.log("Patients who texted this doctor:", patientsList);
+            setPatients(patientsList);
+          } else {
+            console.error("Failed to fetch conversations");
+            setPatients([]);
+          }
         }
 
         setLoading(false);
@@ -80,71 +151,283 @@ const Chat = () => {
     };
 
     fetchData();
-  }, [user, userData, navigate]);
+  }, [user, userData, navigate, API_URL]);
 
-  // Load messages when a user is selected
+  // Load messages when a user is selected or conversations change
   useEffect(() => {
     if (!selectedUser || !user) return;
 
-    const fetchMessages = async () => {
+    // Define the refresh function
+    const refreshConversation = async () => {
       try {
-        // Find the conversation between current user and selected user
-        const conversation = conversations.find(
-          (conv) =>
-            (userData?.type === "patient" &&
-              conv.doctor._id === selectedUser._id) ||
-            (userData?.type === "doctor" &&
-              conv.patient._id === selectedUser._id)
+        // First, get the current user's MongoDB ID
+        const currentUserResponse = await axios.get(
+          `${API_URL}/api/users/email/${userData.email}`
         );
 
-        console.log("Found conversation:", conversation);
+        if (
+          !currentUserResponse.data.success ||
+          !currentUserResponse.data.user._id
+        ) {
+          console.log("Could not fetch current user MongoDB ID for refresh");
+          return;
+        }
 
-        if (conversation) {
-          // Fetch messages for this conversation
-          const response = await axios.get(
-            `${API_URL}/api/chat/messages/${conversation._id}`
-          );
+        const currentUserMongoId = currentUserResponse.data.user._id;
+        const selectedUserId = selectedUser._id;
 
-          if (response.data.success) {
-            console.log("Messages loaded:", response.data.messages.length);
+        // Refresh the specific conversation between these two users instead of all conversations
+        const conversationResponse = await axios.get(
+          `${API_URL}/api/chat/conversations/between/${currentUserMongoId}/${selectedUserId}`
+        );
 
-            const formattedMessages = response.data.messages.map((msg) => ({
-              id: msg._id,
-              sender:
-                (msg.sender === conversation.patient._id &&
-                  userData?.type === "patient") ||
-                (msg.sender === conversation.doctor._id &&
-                  userData?.type === "doctor")
-                  ? "You"
-                  : selectedUser.name,
-              content: msg.content,
-              timestamp: msg.createdAt,
-            }));
+        if (
+          conversationResponse.data.success &&
+          conversationResponse.data.conversation
+        ) {
+          const updatedConversation = conversationResponse.data.conversation;
 
-            setMessages(formattedMessages);
+          // Update the conversations state if needed
+          setConversations((prev) => {
+            const exists = prev.some(
+              (conv) => conv._id === updatedConversation._id
+            );
+            if (!exists) {
+              return [...prev, updatedConversation];
+            }
+            return prev.map((conv) =>
+              conv._id === updatedConversation._id ? updatedConversation : conv
+            );
+          });
+
+          // Format and update messages if there's chat history
+          if (
+            updatedConversation.chatHistory &&
+            updatedConversation.chatHistory.length > 0
+          ) {
+            const formattedMessages = updatedConversation.chatHistory
+              .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+              .map((msg) => {
+                // Get sender ID as string
+                const senderId =
+                  typeof msg.sender === "object"
+                    ? msg.sender._id.toString()
+                    : String(msg.sender);
+
+                // Get patient and doctor IDs as strings
+                const patientId =
+                  typeof updatedConversation.patient._id === "object"
+                    ? updatedConversation.patient._id.toString()
+                    : String(updatedConversation.patient._id);
+
+                const doctorId =
+                  typeof updatedConversation.doctor._id === "object"
+                    ? updatedConversation.doctor._id.toString()
+                    : String(updatedConversation.doctor._id);
+
+                // Determine if current user is sender
+                let isCurrentUserSender;
+                if (userData?.type === "patient") {
+                  isCurrentUserSender = senderId === patientId;
+                } else if (userData?.type === "doctor") {
+                  isCurrentUserSender = senderId === doctorId;
+                }
+
+                return {
+                  id: msg._id || msg.createdAt.toString(),
+                  sender: isCurrentUserSender ? "You" : selectedUser.name,
+                  content: msg.content,
+                  timestamp: msg.createdAt,
+                };
+              });
+
+            updateMessages(formattedMessages);
           }
-        } else {
-          // No conversation exists yet
-          console.log("No conversation found for this user");
-          setMessages([]);
         }
       } catch (error) {
-        console.error("Error fetching messages:", error);
+        console.error("Error refreshing conversation:", error);
       }
     };
 
-    fetchMessages();
+    // Initial load of conversation
+    refreshConversation();
 
-    // Set up an interval to refresh messages every 10 seconds
-    const messageRefreshInterval = setInterval(fetchMessages, 10000);
+    // Attach the refresh function to window object so it can be called from other functions
+    window.refreshCurrentConversation = refreshConversation;
 
-    // Cleanup the interval on component unmount or when dependencies change
-    return () => clearInterval(messageRefreshInterval);
-  }, [selectedUser, user, conversations, userData?.type, API_URL]);
+    // Clean up when component unmounts
+    return () => {
+      window.refreshCurrentConversation = null;
+    };
+  }, [selectedUser, user, userData?.email, API_URL]);
 
-  const handleSelectUser = (user) => {
-    setSelectedUser(user);
-    setMessages([]); // Clear messages when selecting a new user
+  // Debug useEffect to log important state changes
+  useEffect(() => {
+    if (selectedUser) {
+      console.log("Selected user changed:", selectedUser.name);
+    }
+  }, [selectedUser]);
+
+  useEffect(() => {
+    console.log("Conversations updated, count:", conversations.length);
+  }, [conversations]);
+
+  const handleSelectUser = (selectedUserObj) => {
+    console.log(
+      "User selected:",
+      selectedUserObj.name,
+      "with ID:",
+      selectedUserObj._id
+    );
+    setSelectedUser(selectedUserObj);
+
+    // Debug helper to show the full API URL
+    const getFullUrl = (path) => {
+      const url = `${API_URL}${path}`;
+      console.log("Full API URL:", url);
+      return url;
+    };
+
+    // Fetch conversation data from backend
+    const fetchConversation = async () => {
+      try {
+        // Show loading state
+        setMessages([]);
+        console.log("hello");
+
+        // Debug user objects structure
+        console.log("Selected user:", JSON.stringify(selectedUserObj));
+        console.log("Auth user data:", JSON.stringify(userData));
+
+        // Validate selected user has MongoDB _id
+        if (!selectedUserObj._id) {
+          console.log("Missing selected user MongoDB ID");
+          return;
+        }
+
+        // Get current user MongoDB ID using email from userData
+        if (!userData || !userData.email) {
+          console.log("Missing user email in userData");
+          return;
+        }
+
+        try {
+          // First fetch the current user's MongoDB ID using their email
+          console.log(
+            "Fetching current user MongoDB ID by email:",
+            userData.email
+          );
+          const userResponse = await axios.get(
+            `${API_URL}/api/users/email/${userData.email}`
+          );
+
+          if (
+            !userResponse.data.success ||
+            !userResponse.data.user ||
+            !userResponse.data.user._id
+          ) {
+            console.log(
+              "Could not find current user by email:",
+              userResponse.data
+            );
+            return;
+          }
+
+          const currentUserMongoId = userResponse.data.user._id;
+          const selectedUserId = selectedUserObj._id;
+
+          console.log("Found current user MongoDB ID:", currentUserMongoId);
+          console.log("Selected user MongoDB ID:", selectedUserId);
+
+          // Now fetch conversation using both MongoDB IDs - fix URL to include /chat
+          const apiPath = `/api/chat/conversations/between/${currentUserMongoId}/${selectedUserId}`;
+          const response = await axios.get(getFullUrl(apiPath));
+
+          console.log("Conversation fetch response:", response.data);
+
+          if (response.data.success && response.data.conversation) {
+            const conversation = response.data.conversation;
+
+            // Update local conversations state with this conversation if needed
+            setConversations((prevConversations) => {
+              const exists = prevConversations.some(
+                (conv) => conv._id === conversation._id
+              );
+              if (!exists) {
+                return [...prevConversations, conversation];
+              }
+              return prevConversations.map((conv) =>
+                conv._id === conversation._id ? conversation : conv
+              );
+            });
+
+            // Format and display messages if available
+            if (
+              conversation.chatHistory &&
+              conversation.chatHistory.length > 0
+            ) {
+              console.log(
+                `Found conversation with ${conversation.chatHistory.length} messages`
+              );
+
+              // Format the messages for display
+              const formattedMessages = conversation.chatHistory
+                // Sort messages by timestamp (oldest first)
+                .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+                .map((msg) => {
+                  // Check if msg.sender is a string or an object with _id
+                  const senderId =
+                    typeof msg.sender === "object"
+                      ? msg.sender._id.toString()
+                      : String(msg.sender);
+
+                  // Get IDs for comparison, ensuring they're strings
+                  const patientId =
+                    typeof conversation.patient._id === "object"
+                      ? conversation.patient._id.toString()
+                      : String(conversation.patient._id);
+
+                  const doctorId =
+                    typeof conversation.doctor._id === "object"
+                      ? conversation.doctor._id.toString()
+                      : String(conversation.doctor._id);
+
+                  // Determine if the current user is the sender
+                  let isCurrentUserSender;
+                  if (userData?.type === "patient") {
+                    isCurrentUserSender = senderId === patientId;
+                  } else if (userData?.type === "doctor") {
+                    isCurrentUserSender = senderId === doctorId;
+                  }
+
+                  return {
+                    id: msg._id || msg.createdAt.toString(),
+                    sender: isCurrentUserSender ? "You" : selectedUserObj.name,
+                    content: msg.content,
+                    timestamp: msg.createdAt,
+                  };
+                });
+
+              updateMessages(formattedMessages);
+            } else {
+              console.log("No messages in conversation");
+              updateMessages([]);
+            }
+          } else {
+            console.log("No existing conversation found for this user");
+            updateMessages([]);
+          }
+        } catch (error) {
+          console.error("Error fetching user by email:", error);
+          updateMessages([]);
+        }
+      } catch (error) {
+        console.error("Error in conversation fetch process:", error);
+        updateMessages([]);
+      }
+    };
+
+    fetchConversation();
   };
 
   const handleSendMessage = async (e) => {
@@ -152,26 +435,18 @@ const Chat = () => {
 
     if (!newMessage.trim() || !selectedUser || !user) return;
 
-    // Create a temporary message ID for optimistic updates
-    const tempId = Date.now().toString();
+    // Store the message content and clear input immediately for better UX
+    const messageContent = newMessage.trim();
+    setNewMessage("");
+
+    // Show loading indicator or disable send button if needed
+    // setIsSending(true); // You could add this state if you want a loading indicator
 
     try {
       // Debug the user objects
       console.log("Current user:", user);
       console.log("Selected user:", selectedUser);
       console.log("UserData:", userData);
-
-      // Add message to UI immediately for better user experience
-      const tempMessage = {
-        id: tempId,
-        sender: "You",
-        content: newMessage.trim(),
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, tempMessage]);
-      const messageContent = newMessage.trim();
-      setNewMessage("");
 
       // Create mock backend users if needed
       try {
@@ -209,7 +484,7 @@ const Chat = () => {
         throw new Error("Missing user IDs");
       }
 
-      // Send message through the API with both IDs
+      // Send message through the API
       const response = await axios.post(`${API_URL}/api/chat/messages`, {
         senderId: senderId,
         receiverId: receiverId,
@@ -222,69 +497,38 @@ const Chat = () => {
       console.log("Message sent successfully:", response.data);
 
       if (response.data.success) {
-        // Keep the message in the UI and update it with server data
-        const serverMessageId = response.data.message._id;
-
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === tempId
-              ? {
-                  id: serverMessageId,
-                  sender: "You",
-                  content: response.data.message.content,
-                  timestamp: response.data.message.createdAt,
-                }
-              : msg
-          )
-        );
-
-        // Add this conversation to our state if it's new
+        // Update the conversations list with the latest conversation
         if (response.data.conversation) {
-          const conversationId = response.data.conversation._id;
+          const updatedConversation = response.data.conversation;
 
-          // Check if this is a new conversation we don't have yet
-          const isNewConversation = !conversations.some(
-            (conv) => conv._id === conversationId
-          );
-
-          if (isNewConversation) {
-            console.log(
-              "Adding new conversation to state:",
-              response.data.conversation
+          setConversations((prevConversations) => {
+            // Check if this conversation already exists in our state
+            const existingIndex = prevConversations.findIndex(
+              (conv) => conv._id === updatedConversation._id
             );
-            // We need to ensure the conversation has the right references
-            const newConversation = response.data.conversation;
 
-            // Make sure we add this without wiping out existing conversations
-            setConversations((prev) => [...prev, newConversation]);
-          } else {
-            console.log("Updating existing conversation");
-
-            // Just update the existing conversations via API
-            try {
-              const conversationsResponse = await axios.get(
-                `${API_URL}/api/chat/conversations/${senderId}`
-              );
-
-              if (conversationsResponse.data.success) {
-                console.log(
-                  "Updated conversations:",
-                  conversationsResponse.data.conversations
-                );
-                setConversations(
-                  conversationsResponse.data.conversations || []
-                );
-              }
-            } catch (conversationError) {
-              console.error("Error updating conversations:", conversationError);
+            if (existingIndex >= 0) {
+              // Replace the existing conversation with the updated one
+              const newConversations = [...prevConversations];
+              newConversations[existingIndex] = updatedConversation;
+              return newConversations;
+            } else {
+              // Add the new conversation to the list
+              return [...prevConversations, updatedConversation];
             }
+          });
+
+          // Refresh conversation to get the updated messages including the one we just sent
+          if (window.refreshCurrentConversation) {
+            window.refreshCurrentConversation();
           }
         }
       }
     } catch (error) {
       console.error("Error sending message:", error);
-      // Remove the temp message if it failed to send
-      setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
+
+      // Re-enable send button if needed
+      // setIsSending(false);
 
       // Show detailed error message to user
       alert(
@@ -380,8 +624,13 @@ const Chat = () => {
                   </div>
                 </div>
 
-                {/* Messages Area */}
-                <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+                {/* Messages Area - Patient View */}
+                <div
+                  className="flex-1 overflow-y-auto p-4 bg-gray-50"
+                  ref={
+                    userData?.type === "patient" ? messagesContainerRef : null
+                  }
+                >
                   {messages.length === 0 ? (
                     <div className="flex justify-center items-center h-full">
                       <p className="text-gray-500">
@@ -585,8 +834,13 @@ const Chat = () => {
                   </div>
                 </div>
 
-                {/* Messages Area */}
-                <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+                {/* Messages Area - Doctor View */}
+                <div
+                  className="flex-1 overflow-y-auto p-4 bg-gray-50"
+                  ref={
+                    userData?.type === "doctor" ? messagesContainerRef : null
+                  }
+                >
                   {messages.length === 0 ? (
                     <div className="flex justify-center items-center h-full">
                       <p className="text-gray-500">

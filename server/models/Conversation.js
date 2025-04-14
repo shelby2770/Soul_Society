@@ -12,13 +12,36 @@ const conversationSchema = new mongoose.Schema({
     required: true,
   },
   lastMessage: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Message",
+    type: String,
+    default: "",
   },
   lastMessageTime: {
     type: Date,
     default: Date.now,
   },
+  // Array of messages in this conversation
+  chatHistory: [
+    {
+      sender: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+      },
+      content: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+      read: {
+        type: Boolean,
+        default: false,
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
   createdAt: {
     type: Date,
     default: Date.now,

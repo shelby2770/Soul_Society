@@ -65,6 +65,7 @@ router.get("/email/:email", async (req, res) => {
     res.json({
       success: true,
       user: {
+        _id: user._id,
         name: user.name,
         email: user.email,
         type: user.type,
