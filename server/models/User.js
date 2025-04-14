@@ -23,6 +23,12 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  // Firebase ID for linking with Firebase Auth
+  firebaseId: {
+    type: String,
+    sparse: true,
+    index: true,
+  },
   // Doctor specific fields
   specialization: {
     type: String,

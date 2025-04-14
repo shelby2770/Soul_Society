@@ -152,4 +152,64 @@ router.get("/doctor/:email/patients", async (req, res) => {
   }
 });
 
+// Create a user from Firebase data
+router.post("/", async (req, res) => {
+  try {
+    const { name, email, type, firebaseId } = req.body;
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      // If user exists but doesn't have firebaseId, update it
+      if (!existingUser.firebaseId && firebaseId) {
+        existingUser.firebaseId = firebaseId;
+        await existingUser.save();
+      }
+
+      return res.json({
+        success: true,
+        user: {
+          _id: existingUser._id,
+          name: existingUser.name,
+          email: existingUser.email,
+          type: existingUser.type,
+        },
+        message: "User already exists",
+      });
+    }
+
+    // Generate a random password for the user since Firebase handles auth
+    const randomPassword = Math.random().toString(36).slice(-10);
+
+    // Create new user
+    const newUser = new User({
+      name: name || email.split("@")[0],
+      email,
+      type: type || "patient",
+      password: randomPassword,
+      firebaseId,
+    });
+
+    await newUser.save();
+
+    res.status(201).json({
+      success: true,
+      user: {
+        _id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        type: newUser.type,
+      },
+      message: "User created successfully",
+    });
+  } catch (error) {
+    console.error("Error creating user:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error creating user",
+      error: error.message,
+    });
+  }
+});
+
 export default router;

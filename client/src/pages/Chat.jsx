@@ -28,9 +28,12 @@ const Chat = () => {
       try {
         setLoading(true);
 
+        // Always use Firebase UID for API calls
+        const currentUserId = user.uid;
+
         // Fetch conversations for the current user
         const conversationsResponse = await axios
-          .get(`${API_URL}/api/chat/conversations/${user._id}`)
+          .get(`${API_URL}/api/chat/conversations/${currentUserId}`)
           .catch((error) => {
             console.log("No conversations found:", error);
             return { data: { success: true, conversations: [] } };
@@ -94,6 +97,8 @@ const Chat = () => {
               conv.patient._id === selectedUser._id)
         );
 
+        console.log("Found conversation:", conversation);
+
         if (conversation) {
           // Fetch messages for this conversation
           const response = await axios.get(
@@ -101,21 +106,26 @@ const Chat = () => {
           );
 
           if (response.data.success) {
+            console.log("Messages loaded:", response.data.messages.length);
+
             const formattedMessages = response.data.messages.map((msg) => ({
               id: msg._id,
-              sender: msg.sender === user._id ? "You" : selectedUser.name,
+              sender:
+                (msg.sender === conversation.patient._id &&
+                  userData?.type === "patient") ||
+                (msg.sender === conversation.doctor._id &&
+                  userData?.type === "doctor")
+                  ? "You"
+                  : selectedUser.name,
               content: msg.content,
               timestamp: msg.createdAt,
             }));
-            setMessages(formattedMessages);
 
-            // Mark messages as read
-            await axios.put(
-              `${API_URL}/api/chat/read/${user._id}/${conversation._id}`
-            );
+            setMessages(formattedMessages);
           }
         } else {
           // No conversation exists yet
+          console.log("No conversation found for this user");
           setMessages([]);
         }
       } catch (error) {
@@ -124,7 +134,13 @@ const Chat = () => {
     };
 
     fetchMessages();
-  }, [selectedUser, user, conversations, userData?.type]);
+
+    // Set up an interval to refresh messages every 10 seconds
+    const messageRefreshInterval = setInterval(fetchMessages, 10000);
+
+    // Cleanup the interval on component unmount or when dependencies change
+    return () => clearInterval(messageRefreshInterval);
+  }, [selectedUser, user, conversations, userData?.type, API_URL]);
 
   const handleSelectUser = (user) => {
     setSelectedUser(user);
@@ -136,38 +152,146 @@ const Chat = () => {
 
     if (!newMessage.trim() || !selectedUser || !user) return;
 
+    // Create a temporary message ID for optimistic updates
+    const tempId = Date.now().toString();
+
     try {
-      // Send message through the API
-      const response = await axios.post(`${API_URL}/api/chat/messages`, {
-        senderId: user._id,
-        receiverId: selectedUser._id,
+      // Debug the user objects
+      console.log("Current user:", user);
+      console.log("Selected user:", selectedUser);
+      console.log("UserData:", userData);
+
+      // Add message to UI immediately for better user experience
+      const tempMessage = {
+        id: tempId,
+        sender: "You",
         content: newMessage.trim(),
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, tempMessage]);
+      const messageContent = newMessage.trim();
+      setNewMessage("");
+
+      // Create mock backend users if needed
+      try {
+        // Try to create user account on backend if it doesn't exist yet
+        if (!userData?._id) {
+          console.log("Attempting to create user on backend...");
+          const createUserResponse = await axios.post(`${API_URL}/api/users`, {
+            name: user.displayName || user.email.split("@")[0],
+            email: user.email,
+            type: userData?.type || "patient",
+            firebaseId: user.uid,
+          });
+          console.log(
+            "Backend user creation response:",
+            createUserResponse.data
+          );
+        }
+      } catch (err) {
+        console.log("User might already exist on backend:", err);
+      }
+
+      // Get ids for messaging
+      const senderId = user.uid; // Use Firebase uid for now
+      const receiverId = selectedUser._id; // MongoDB ID for the doctor
+
+      console.log("Using sender ID:", senderId);
+      console.log("Using receiver ID:", receiverId);
+
+      // Verify we have valid IDs
+      if (!senderId || !receiverId) {
+        console.error("Missing IDs:", {
+          "user.uid": user?.uid,
+          "selectedUser._id": selectedUser?._id,
+        });
+        throw new Error("Missing user IDs");
+      }
+
+      // Send message through the API with both IDs
+      const response = await axios.post(`${API_URL}/api/chat/messages`, {
+        senderId: senderId,
+        receiverId: receiverId,
+        content: messageContent,
+        // Add this field to help backend identify Firebase users
+        isFirebaseUser: true,
+        senderEmail: user.email, // Add email to help backend identify the user
       });
 
+      console.log("Message sent successfully:", response.data);
+
       if (response.data.success) {
-        // Add the new message to the messages array
-        const message = {
-          id: response.data.message._id,
-          sender: "You",
-          content: response.data.message.content,
-          timestamp: response.data.message.createdAt,
-        };
+        // Keep the message in the UI and update it with server data
+        const serverMessageId = response.data.message._id;
 
-        setMessages((prev) => [...prev, message]);
-        setNewMessage("");
-
-        // Update conversations list
-        const conversationsResponse = await axios.get(
-          `${API_URL}/api/chat/conversations/${user._id}`
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === tempId
+              ? {
+                  id: serverMessageId,
+                  sender: "You",
+                  content: response.data.message.content,
+                  timestamp: response.data.message.createdAt,
+                }
+              : msg
+          )
         );
 
-        if (conversationsResponse.data.success) {
-          setConversations(conversationsResponse.data.conversations);
+        // Add this conversation to our state if it's new
+        if (response.data.conversation) {
+          const conversationId = response.data.conversation._id;
+
+          // Check if this is a new conversation we don't have yet
+          const isNewConversation = !conversations.some(
+            (conv) => conv._id === conversationId
+          );
+
+          if (isNewConversation) {
+            console.log(
+              "Adding new conversation to state:",
+              response.data.conversation
+            );
+            // We need to ensure the conversation has the right references
+            const newConversation = response.data.conversation;
+
+            // Make sure we add this without wiping out existing conversations
+            setConversations((prev) => [...prev, newConversation]);
+          } else {
+            console.log("Updating existing conversation");
+
+            // Just update the existing conversations via API
+            try {
+              const conversationsResponse = await axios.get(
+                `${API_URL}/api/chat/conversations/${senderId}`
+              );
+
+              if (conversationsResponse.data.success) {
+                console.log(
+                  "Updated conversations:",
+                  conversationsResponse.data.conversations
+                );
+                setConversations(
+                  conversationsResponse.data.conversations || []
+                );
+              }
+            } catch (conversationError) {
+              console.error("Error updating conversations:", conversationError);
+            }
+          }
         }
       }
     } catch (error) {
       console.error("Error sending message:", error);
-      // You might want to show an error notification here
+      // Remove the temp message if it failed to send
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
+
+      // Show detailed error message to user
+      alert(
+        `Failed to send message: ${
+          error.response?.data?.message || error.message
+        }`
+      );
     }
   };
 
@@ -312,8 +436,16 @@ const Chat = () => {
                       type="text"
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          if (newMessage.trim()) {
+                            handleSendMessage(e);
+                          }
+                        }
+                      }}
                       placeholder="Type your message..."
-                      className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white placeholder-gray-400"
+                      className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white placeholder-gray-400 text-black"
                     />
                     <button
                       type="submit"
@@ -509,8 +641,16 @@ const Chat = () => {
                       type="text"
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          if (newMessage.trim()) {
+                            handleSendMessage(e);
+                          }
+                        }
+                      }}
                       placeholder="Type your message..."
-                      className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 bg-white placeholder-gray-400"
+                      className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 bg-white placeholder-gray-400 text-black"
                     />
                     <button
                       type="submit"
