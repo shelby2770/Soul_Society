@@ -11,7 +11,6 @@ const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [loading, setLoading] = useState(true);
   const { user, userData, signOut, fetchUserData } = useAuth();
 
   // console.log(user, user.email);
@@ -24,15 +23,12 @@ const Navbar = () => {
     }
 
     const loadInitialData = async () => {
-      setLoading(true);
       try {
         if (user.email) {
           await fetchUserData(user.email);
         }
       } catch (error) {
         console.error("Error loading user data:", error);
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -140,6 +136,19 @@ const Navbar = () => {
                 Find a Doctor
               </Link>
             )}
+            {user &&
+              (userData?.type === "patient" || userData?.type === "doctor") && (
+                <Link
+                  to="/chat"
+                  className={`text-sm transition-colors h-10 leading-loose ${
+                    location.pathname === "/chat"
+                      ? "text-blue-700 font-medium"
+                      : "text-gray-900 hover:text-blue-600"
+                  }`}
+                >
+                  Chat
+                </Link>
+              )}
             <Link
               to="/contact"
               className={`text-sm transition-colors h-10 leading-loose ${
@@ -181,6 +190,15 @@ const Navbar = () => {
                       >
                         Profile
                       </Link>
+                      {userData?.type === "patient" && (
+                        <Link
+                          to="/chat"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => setShowProfileMenu(false)}
+                        >
+                          Chat
+                        </Link>
+                      )}
                       <button
                         onClick={handleSignOut}
                         className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -358,6 +376,21 @@ const Navbar = () => {
                   Find a Doctor
                 </Link>
               )}
+              {user &&
+                (userData?.type === "patient" ||
+                  userData?.type === "doctor") && (
+                  <Link
+                    to="/chat"
+                    className={`block px-3 py-2 rounded-md text-base font-medium ${
+                      location.pathname === "/chat"
+                        ? "text-blue-700 bg-blue-50"
+                        : "text-gray-900 hover:text-blue-600 hover:bg-gray-50"
+                    }`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Chat
+                  </Link>
+                )}
               <Link
                 to="/contact"
                 className={`block px-3 py-2 rounded-md text-base font-medium ${
@@ -389,6 +422,19 @@ const Navbar = () => {
                   >
                     Profile
                   </Link>
+                  {userData?.type === "patient" && (
+                    <Link
+                      to="/chat"
+                      className={`block px-3 py-2 rounded-md text-base font-medium ${
+                        location.pathname === "/chat"
+                          ? "text-blue-700 bg-blue-50"
+                          : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                      }`}
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Chat
+                    </Link>
+                  )}
                   <button
                     onClick={() => {
                       handleSignOut();
