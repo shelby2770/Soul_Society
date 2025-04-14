@@ -30,9 +30,30 @@ async function server() {
       },
     });
 
+    // Track active users by their MongoDB ID
+    const activeUsers = new Map();
+
     // Socket.IO connection handler
     io.on("connection", (socket) => {
       console.log(`New client connected: ${socket.id}`);
+
+      // Handle user going online
+      socket.on("user_online", (userData) => {
+        if (userData && userData.userId) {
+          console.log(`User online: ${userData.userId} (${userData.userName})`);
+
+          // Store user data in the active users map
+          activeUsers.set(userData.userId, {
+            socketId: socket.id,
+            userName: userData.userName,
+            userType: userData.userType,
+            lastActive: new Date(),
+          });
+
+          // Broadcast to all clients that this user is online
+          io.emit("active_users", Array.from(activeUsers.keys()));
+        }
+      });
 
       // Join a conversation room
       socket.on("join_conversation", (conversationId) => {
@@ -57,11 +78,32 @@ async function server() {
         socket
           .to(messageData.conversationId)
           .emit("receive_message", messageData);
+
+        // Update user's last active timestamp
+        for (const [userId, userData] of activeUsers.entries()) {
+          if (userData.socketId === socket.id) {
+            userData.lastActive = new Date();
+            activeUsers.set(userId, userData);
+            break;
+          }
+        }
       });
 
       // Handle disconnection
       socket.on("disconnect", () => {
         console.log(`Client disconnected: ${socket.id}`);
+
+        // Find and remove the disconnected user from active users
+        for (const [userId, userData] of activeUsers.entries()) {
+          if (userData.socketId === socket.id) {
+            activeUsers.delete(userId);
+            console.log(`User ${userId} is now offline`);
+            break;
+          }
+        }
+
+        // Broadcast updated active users list
+        io.emit("active_users", Array.from(activeUsers.keys()));
       });
     });
 

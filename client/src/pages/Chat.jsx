@@ -17,6 +17,7 @@ const Chat = () => {
   const [conversations, setConversations] = useState([]);
   const messagesContainerRef = useRef(null); // Ref for the messages container
   const socketRef = useRef(null); // Ref for the socket connection
+  const [activeUsers, setActiveUsers] = useState([]); // Track online users
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
   // Auto-scroll to bottom of messages container
@@ -46,6 +47,36 @@ const Chat = () => {
 
     socket.on("connect", () => {
       console.log("Socket.IO connected with ID:", socket.id);
+
+      // Once connected and if we have user data, emit online status
+      if (userData && userData.email) {
+        // First get MongoDB ID for the current user
+        axios
+          .get(`${API_URL}/api/users/email/${userData.email}`)
+          .then((response) => {
+            if (response.data.success && response.data.user._id) {
+              // Send online status to server
+              socket.emit("user_online", {
+                userId: response.data.user._id,
+                userName: userData.name,
+                userType: userData.type,
+              });
+              console.log(
+                "Emitted online status for user:",
+                response.data.user._id
+              );
+            }
+          })
+          .catch((error) => {
+            console.error("Error getting user MongoDB ID:", error);
+          });
+      }
+    });
+
+    // Listen for active users updates
+    socket.on("active_users", (users) => {
+      console.log("Active users update:", users);
+      setActiveUsers(users);
     });
 
     socket.on("connect_error", (error) => {
@@ -62,7 +93,12 @@ const Chat = () => {
         socketRef.current.disconnect();
       }
     };
-  }, [user, API_URL]);
+  }, [user, userData, API_URL]);
+
+  // Helper function to check if a user is active
+  const isUserActive = (userId) => {
+    return activeUsers.includes(userId);
+  };
 
   // Join conversation room when selecting a user
   useEffect(() => {
@@ -698,10 +734,15 @@ const Chat = () => {
                     onClick={() => handleSelectUser(doctor)}
                   >
                     <div className="flex items-center">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                        <span className="text-blue-600 font-medium">
-                          {doctor.name.charAt(0)}
-                        </span>
+                      <div className="relative">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                          <span className="text-blue-600 font-medium">
+                            {doctor.name.charAt(0)}
+                          </span>
+                        </div>
+                        {isUserActive(doctor._id) && (
+                          <div className="absolute bottom-0 right-2 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                        )}
                       </div>
                       <div>
                         <h3 className="font-medium text-gray-800">
@@ -724,18 +765,30 @@ const Chat = () => {
           <div className="md:col-span-2 bg-white rounded-lg shadow-md overflow-hidden h-[600px] flex flex-col">
             {selectedUser ? (
               <>
-                {/* Chat Header */}
+                {/* Chat Header - Patient View */}
                 <div className="p-4 border-b border-gray-200 bg-gray-50">
                   <div className="flex items-center">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                      <span className="text-blue-600 font-medium">
-                        {selectedUser.name.charAt(0)}
-                      </span>
+                    <div className="relative">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                        <span className="text-blue-600 font-medium">
+                          {selectedUser.name.charAt(0)}
+                        </span>
+                      </div>
+                      {isUserActive(selectedUser._id) && (
+                        <div className="absolute bottom-0 right-2 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                      )}
                     </div>
                     <div>
-                      <h3 className="font-medium text-gray-800">
-                        {selectedUser.name}
-                      </h3>
+                      <div className="flex items-center">
+                        <h3 className="font-medium text-gray-800">
+                          {selectedUser.name}
+                        </h3>
+                        {isUserActive(selectedUser._id) && (
+                          <span className="ml-2 text-xs text-green-600 font-medium">
+                            • Online
+                          </span>
+                        )}
+                      </div>
                       {selectedUser.specialization && (
                         <p className="text-sm text-blue-600">
                           {selectedUser.specialization}
@@ -906,10 +959,15 @@ const Chat = () => {
                     onClick={() => handleSelectUser(patient)}
                   >
                     <div className="flex items-center">
-                      <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
-                        <span className="text-red-600 font-medium">
-                          {patient.name.charAt(0)}
-                        </span>
+                      <div className="relative">
+                        <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
+                          <span className="text-red-600 font-medium">
+                            {patient.name.charAt(0)}
+                          </span>
+                        </div>
+                        {isUserActive(patient._id) && (
+                          <div className="absolute bottom-0 right-2 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                        )}
                       </div>
                       <div className="flex-1">
                         <h3 className="font-medium text-gray-800">
@@ -939,18 +997,30 @@ const Chat = () => {
           <div className="md:col-span-2 bg-white rounded-lg shadow-md overflow-hidden h-[600px] flex flex-col">
             {selectedUser ? (
               <>
-                {/* Chat Header */}
+                {/* Chat Header - Doctor View */}
                 <div className="p-4 border-b border-gray-200 bg-red-50">
                   <div className="flex items-center">
-                    <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
-                      <span className="text-red-600 font-medium">
-                        {selectedUser.name.charAt(0)}
-                      </span>
+                    <div className="relative">
+                      <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
+                        <span className="text-red-600 font-medium">
+                          {selectedUser.name.charAt(0)}
+                        </span>
+                      </div>
+                      {isUserActive(selectedUser._id) && (
+                        <div className="absolute bottom-0 right-2 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                      )}
                     </div>
                     <div>
-                      <h3 className="font-medium text-gray-800">
-                        {selectedUser.name}
-                      </h3>
+                      <div className="flex items-center">
+                        <h3 className="font-medium text-gray-800">
+                          {selectedUser.name}
+                        </h3>
+                        {isUserActive(selectedUser._id) && (
+                          <span className="ml-2 text-xs text-green-600 font-medium">
+                            • Online
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
