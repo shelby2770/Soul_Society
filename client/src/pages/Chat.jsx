@@ -3,6 +3,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Button } from "../components/ui/button";
+import io from "socket.io-client";
 
 const Chat = () => {
   const { user, userData } = useAuth();
@@ -15,6 +16,7 @@ const Chat = () => {
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState([]);
   const messagesContainerRef = useRef(null); // Ref for the messages container
+  const socketRef = useRef(null); // Ref for the socket connection
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
   // Auto-scroll to bottom of messages container
@@ -33,6 +35,129 @@ const Chat = () => {
     // Scroll to bottom after state update
     scrollToBottom();
   };
+
+  // Initialize Socket.IO connection
+  useEffect(() => {
+    // Only connect if user is logged in
+    if (!user) return;
+
+    console.log("Initializing Socket.IO connection");
+    const socket = io(API_URL);
+
+    socket.on("connect", () => {
+      console.log("Socket.IO connected with ID:", socket.id);
+    });
+
+    socket.on("connect_error", (error) => {
+      console.error("Socket.IO connection error:", error);
+    });
+
+    // Store socket in ref
+    socketRef.current = socket;
+
+    // Clean up socket connection on unmount
+    return () => {
+      console.log("Disconnecting Socket.IO");
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, [user, API_URL]);
+
+  // Join conversation room when selecting a user
+  useEffect(() => {
+    if (!selectedUser || !socketRef.current) return;
+
+    // Function to join the appropriate conversation room
+    const joinConversationRoom = async () => {
+      try {
+        // Get the current user's MongoDB ID
+        const userResponse = await axios.get(
+          `${API_URL}/api/users/email/${userData.email}`
+        );
+
+        if (!userResponse.data.success || !userResponse.data.user._id) {
+          console.log(
+            "Could not fetch current user MongoDB ID for socket room"
+          );
+          return;
+        }
+
+        const currentUserMongoId = userResponse.data.user._id;
+        const selectedUserId = selectedUser._id;
+
+        // Find existing conversation ID
+        const response = await axios.get(
+          `${API_URL}/api/chat/conversations/between/${currentUserMongoId}/${selectedUserId}`
+        );
+
+        if (response.data.success && response.data.conversation) {
+          const conversationId = response.data.conversation._id;
+          console.log(
+            "Joining Socket.IO room for conversation:",
+            conversationId
+          );
+
+          // Leave any previous conversation room
+          if (socketRef.current) {
+            socketRef.current.emit("leave_conversation", conversationId);
+
+            // Join new conversation room
+            socketRef.current.emit("join_conversation", conversationId);
+          }
+        }
+      } catch (error) {
+        console.error("Error joining conversation room:", error);
+      }
+    };
+
+    joinConversationRoom();
+  }, [selectedUser, userData?.email, API_URL]);
+
+  // Listen for new messages from Socket.IO
+  useEffect(() => {
+    if (!socketRef.current) return;
+
+    // Handle new messages received via Socket.IO
+    const handleNewMessage = (messageData) => {
+      console.log("Received new message via Socket.IO:", messageData);
+
+      // Update the message list if it's for the current conversation
+      if (selectedUser && userData?._id) {
+        const isRelevantMessage =
+          (userData?.type === "patient" &&
+            messageData.doctor._id === selectedUser._id) ||
+          (userData?.type === "doctor" &&
+            messageData.patient._id === selectedUser._id);
+
+        if (isRelevantMessage) {
+          // Format the message
+          const newMessage = {
+            id: messageData.message._id,
+            sender:
+              messageData.message.sender._id === userData?._id
+                ? "You"
+                : selectedUser.name,
+            content: messageData.message.content,
+            timestamp: messageData.message.createdAt,
+          };
+
+          // Add message to existing messages
+          updateMessages([...messages, newMessage]);
+        }
+      }
+    };
+
+    // Set up event listener
+    socketRef.current.on("receive_message", handleNewMessage);
+
+    // Clean up event listener
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.off("receive_message", handleNewMessage);
+      }
+    };
+  }, [selectedUser, messages, userData]);
 
   useEffect(() => {
     // Redirect if not logged in
@@ -501,27 +626,23 @@ const Chat = () => {
         if (response.data.conversation) {
           const updatedConversation = response.data.conversation;
 
+          // We don't need to manually update UI as Socket.IO will handle real-time updates
+          console.log("Socket.IO will update the conversation in real-time");
+
+          // Update conversations list
           setConversations((prevConversations) => {
-            // Check if this conversation already exists in our state
             const existingIndex = prevConversations.findIndex(
               (conv) => conv._id === updatedConversation._id
             );
 
             if (existingIndex >= 0) {
-              // Replace the existing conversation with the updated one
               const newConversations = [...prevConversations];
               newConversations[existingIndex] = updatedConversation;
               return newConversations;
             } else {
-              // Add the new conversation to the list
               return [...prevConversations, updatedConversation];
             }
           });
-
-          // Refresh conversation to get the updated messages including the one we just sent
-          if (window.refreshCurrentConversation) {
-            window.refreshCurrentConversation();
-          }
         }
       }
     } catch (error) {

@@ -168,6 +168,44 @@ export const sendMessage = async (req, res) => {
       populatedConversation.lastMessage
     );
 
+    // Emit Socket.IO event for real-time updates
+    const io = req.app.get("socketio");
+    if (io) {
+      // Format the message for socket emission
+      const socketMessage = {
+        conversationId: populatedConversation._id.toString(),
+        message: {
+          _id: addedMessage._id,
+          sender: {
+            _id: sender._id,
+            name: sender.name,
+            type: sender.type,
+          },
+          content: addedMessage.content,
+          createdAt: addedMessage.createdAt,
+        },
+        patient: {
+          _id: patient._id,
+          name: patient.name,
+        },
+        doctor: {
+          _id: doctor._id,
+          name: doctor.name,
+        },
+      };
+
+      // Emit to the conversation room
+      io.to(socketMessage.conversationId).emit(
+        "receive_message",
+        socketMessage
+      );
+      console.log(
+        `Socket.IO: Emitted message to room ${socketMessage.conversationId}`
+      );
+    } else {
+      console.log("Socket.IO instance not available");
+    }
+
     res.status(201).json({
       success: true,
       message: addedMessage,
