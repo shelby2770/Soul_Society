@@ -159,6 +159,16 @@ const Navbar = () => {
             >
               Contact
             </Link>
+            <Link
+              to="/doctor-dashboard"
+              className={`text-sm transition-colors h-10 leading-loose ${
+                location.pathname === "/doctor-dashboard"
+                  ? "text-blue-700 font-medium"
+                  : "text-gray-900 hover:text-blue-600"
+              }`}
+            >
+              Doctor Dashboard
+            </Link>
           </div>
 
           {/* Auth Buttons */}
@@ -401,6 +411,17 @@ const Navbar = () => {
                 onClick={() => setIsMenuOpen(false)}
               >
                 Contact
+              </Link>
+              <Link
+                to="/doctor-dashboard"
+                className={`block px-3 py-2 rounded-md text-base font-medium ${
+                  location.pathname === "/doctor-dashboard"
+                    ? "text-blue-700 bg-blue-50"
+                    : "text-gray-900 hover:text-blue-600 hover:bg-gray-50"
+                }`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Doctor Dashboard
               </Link>
             </div>
             <div className="pt-4 pb-3 border-t border-gray-200">

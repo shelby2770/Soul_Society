@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
+import appointmentRoutes from "./routes/appointmentRoutes.js";
 dotenv.config();
 
 const app = express();
@@ -24,6 +25,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/appointments", appointmentRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

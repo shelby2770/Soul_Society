@@ -9,6 +9,7 @@ import Login from "../pages/Login";
 import Doctors from "../pages/Doctors";
 import Profile from "../pages/Profile";
 import Chat from "../pages/Chat";
+import DoctorDashboard from "../pages/DoctorDashboard";
 import { AuthProvider } from "../contexts/AuthContext";
 import { ToastProvider } from "../contexts/ToastContext";
 
@@ -43,6 +44,10 @@ export const router = createBrowserRouter([
       {
         path: "doctors",
         element: <Doctors />,
+      },
+      {
+        path: "doctor-dashboard",
+        element: <DoctorDashboard />,
       },
       {
         path: "login",
