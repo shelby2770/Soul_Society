@@ -6,7 +6,15 @@ import jwt from "jsonwebtoken";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
+
+// Load environment variables
 dotenv.config();
+
+// Validate required environment variables
+if (!process.env.JWT_SECRET) {
+  console.error("ERROR: JWT_SECRET is not set in environment variables");
+  process.exit(1);
+}
 
 const app = express();
 
