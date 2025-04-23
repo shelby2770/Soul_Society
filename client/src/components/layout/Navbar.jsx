@@ -32,9 +32,13 @@ const Navbar = () => {
       try {
         if (user?.email) {
           await fetchUserData(user.email);
-          // Redirect doctor to dashboard after login
-          if (userData?.type === "doctor" && location.pathname === "/") {
-            navigate("/doctor-dashboard");
+          // Redirect users to their respective dashboards after login
+          if (location.pathname === "/") {
+            if (userData?.type === "doctor") {
+              navigate("/doctor-dashboard");
+            } else if (userData?.type === "patient") {
+              navigate("/patient-dashboard");
+            }
           }
         }
       } catch (error) {
@@ -106,19 +110,26 @@ const Navbar = () => {
           <div className="hidden md:flex md:items-center md:space-x-8">
             <Link
               to={
-                user && userData?.type === "doctor" ? "/doctor-dashboard" : "/"
+                user && userData?.type === "doctor"
+                  ? "/doctor-dashboard"
+                  : user && userData?.type === "patient"
+                  ? "/patient-dashboard"
+                  : "/"
               }
               className={`text-sm transition-colors h-10 leading-loose ${
-                location.pathname ===
-                (user && userData?.type === "doctor"
-                  ? "/doctor-dashboard"
-                  : "/")
+                location.pathname === "/" ||
+                (userData?.type === "doctor" &&
+                  location.pathname === "/doctor-dashboard") ||
+                (userData?.type === "patient" &&
+                  location.pathname === "/patient-dashboard")
                   ? "text-blue-700 font-medium"
                   : "text-gray-900 hover:text-blue-600"
               }`}
             >
               {user && userData?.type === "doctor"
                 ? "Doctor Dashboard"
+                : user && userData?.type === "patient"
+                ? "Patient Dashboard"
                 : "Home"}
             </Link>
             <Link
@@ -364,13 +375,16 @@ const Navbar = () => {
                 to={
                   user && userData?.type === "doctor"
                     ? "/doctor-dashboard"
+                    : user && userData?.type === "patient"
+                    ? "/patient-dashboard"
                     : "/"
                 }
                 className={`block px-3 py-2 rounded-md text-base font-medium ${
-                  location.pathname ===
-                  (user && userData?.type === "doctor"
-                    ? "/doctor-dashboard"
-                    : "/")
+                  location.pathname === "/" ||
+                  (userData?.type === "doctor" &&
+                    location.pathname === "/doctor-dashboard") ||
+                  (userData?.type === "patient" &&
+                    location.pathname === "/patient-dashboard")
                     ? "text-blue-700 bg-blue-50"
                     : "text-gray-900 hover:text-blue-600 hover:bg-gray-50"
                 }`}
@@ -378,6 +392,8 @@ const Navbar = () => {
               >
                 {user && userData?.type === "doctor"
                   ? "Doctor Dashboard"
+                  : user && userData?.type === "patient"
+                  ? "Patient Dashboard"
                   : "Home"}
               </Link>
               <Link
