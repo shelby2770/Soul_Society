@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import Survey from "../components/Survey"
 
 const PatientDashboard = () => {
   const [profile, setProfile] = useState({
@@ -58,6 +59,17 @@ const PatientDashboard = () => {
     fetchAppointments();
     fetchMedicines();
   }, []);
+  const [surveyScore, setSurveyScore] = useState(null);
+  {/* Survey Section */}
+  <Survey setSurveyScore={setSurveyScore} />
+
+  {/* Survey Score Display */}
+  {surveyScore !== null && (
+    <div className="bg-green-100 p-4 rounded mb-8">
+      <h2 className="text-xl font-bold">Survey Score</h2>
+    <p>Your total survey score is: <span className="font-bold">{surveyScore}</span></p>
+    </div>
+  )}
 
   const sendMessage = async (e) => {
     e.preventDefault();
