@@ -1,5 +1,6 @@
 import Appointment from "../models/Appointment.js";
 import User from "../models/User.js";
+import { createNotification } from "./notificationController.js";
 
 // Book a new appointment
 export const bookAppointment = async (req, res) => {
@@ -79,20 +80,62 @@ export const getAppointmentsByDoctor = async (req, res) => {
 export const acceptAppointment = async (req, res) => {
   try {
     const appointmentId = req.params.id;
+
+    // Find and update the appointment
     const appointment = await Appointment.findByIdAndUpdate(
       appointmentId,
       { status: "Accepted", updatedAt: Date.now() },
       { new: true }
-    ).populate("patientId", "name email");
+    )
+      .populate("patientId", "name email")
+      .populate("doctorId", "name email specialization");
 
     if (!appointment) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Appointment not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found",
+      });
     }
-    res.json({ success: true, appointment });
+
+    // Create a notification for the patient
+    try {
+      const notificationData = {
+        recipient: appointment.patientId._id,
+        sender: appointment.doctorId._id,
+        type: "appointment_accepted",
+        title: "Appointment Accepted",
+        message: `Dr. ${
+          appointment.doctorId.name
+        } has accepted your appointment scheduled for ${new Date(
+          appointment.date
+        ).toLocaleDateString()} at ${appointment.time}.`,
+        relatedId: appointment._id,
+        relatedModel: "Appointment",
+      };
+
+      await createNotification(notificationData);
+      console.log(
+        "Notification created for patient",
+        appointment.patientId.email
+      );
+    } catch (notificationError) {
+      console.error("Error creating notification:", notificationError);
+      // Continue with the response even if notification fails
+    }
+
+    // Return the updated appointment
+    res.json({
+      success: true,
+      message: "Appointment accepted and patient notified",
+      appointment,
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Server error", error });
+    console.error("Error accepting appointment:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error accepting appointment",
+      error: error.message,
+    });
   }
 };
 

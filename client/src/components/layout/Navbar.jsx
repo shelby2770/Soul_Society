@@ -5,7 +5,7 @@ import LoginModal from "../modals/LoginModal";
 import { useAuth } from "../../contexts/AuthContext";
 import { FiUser, FiLogOut } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import NotificationDropdown from "../NotificationDropdown";
+import Notifications from "../Notifications";
 
 const Navbar = () => {
   const location = useLocation();
@@ -196,8 +196,8 @@ const Navbar = () => {
           <div className="flex items-center space-x-4">
             {user ? (
               <div className="flex items-center gap-4">
-                {/* Notification Dropdown */}
-                <NotificationDropdown />
+                {/* Notifications */}
+                <Notifications />
 
                 {/* Profile Icon with Dropdown */}
                 <div className="relative profile-menu-container">

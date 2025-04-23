@@ -38,32 +38,50 @@ export const initializeNotifications = async (req, res) => {
 // Get user notifications
 export const getUserNotifications = async (req, res) => {
   try {
-    const { userId } = req.params;
-    let userNotifications = await Notification.findOne({ userId });
+    const userId = req.params.userId;
 
-    // If no notifications document exists, create one
-    if (!userNotifications) {
-      userNotifications = await Notification.create({
-        userId,
-        notifications: [
-          {
-            message: "Welcome to Soul Society! We're glad to have you here.",
-            isRead: false,
-            createdAt: new Date(),
-          },
-        ],
+    // Add debug logging
+    console.log("Getting notifications for user:", userId);
+    console.log(
+      "Request user object:",
+      req.user ? `User found: ${req.user.email}` : "No user in request"
+    );
+
+    // Verify the user has permission to access these notifications
+    // The user must be either authenticated as this user or using a public route
+    const isPublicRoute = req.originalUrl.includes("/public/");
+    const hasPermission =
+      isPublicRoute || (req.user && req.user._id.toString() === userId);
+
+    if (!hasPermission) {
+      console.log(
+        "Permission denied for notifications - User doesn't match requested ID"
+      );
+      return res.status(403).json({
+        success: false,
+        message: "You don't have permission to access these notifications",
       });
     }
 
+    // Fetch the notifications
+    const notifications = await Notification.find({ recipient: userId })
+      .populate("sender", "name email type")
+      .sort({ createdAt: -1 }); // Newest first
+
+    console.log(
+      `Found ${notifications.length} notifications for user ${userId}`
+    );
+
     res.json({
       success: true,
-      notifications: userNotifications.notifications,
+      notifications,
     });
   } catch (error) {
     console.error("Error fetching notifications:", error);
     res.status(500).json({
       success: false,
       message: "Error fetching notifications",
+      error: error.message,
     });
   }
 };
@@ -71,21 +89,15 @@ export const getUserNotifications = async (req, res) => {
 // Mark notification as read
 export const markAsRead = async (req, res) => {
   try {
-    const { notificationId } = req.params;
-    const userId = req.user._id; // Assuming you have user info in req.user
+    const notificationId = req.params.id;
 
-    const result = await Notification.findOneAndUpdate(
-      {
-        userId,
-        "notifications._id": notificationId,
-      },
-      {
-        $set: { "notifications.$.isRead": true },
-      },
+    const notification = await Notification.findByIdAndUpdate(
+      notificationId,
+      { isRead: true },
       { new: true }
     );
 
-    if (!result) {
+    if (!notification) {
       return res.status(404).json({
         success: false,
         message: "Notification not found",
@@ -94,13 +106,14 @@ export const markAsRead = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Notification marked as read",
+      notification,
     });
   } catch (error) {
     console.error("Error marking notification as read:", error);
     res.status(500).json({
       success: false,
-      message: "Error marking notification as read",
+      message: "Error updating notification",
+      error: error.message,
     });
   }
 };
@@ -108,22 +121,12 @@ export const markAsRead = async (req, res) => {
 // Mark all notifications as read
 export const markAllAsRead = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.params.userId;
 
-    const result = await Notification.findOneAndUpdate(
-      { userId },
-      {
-        $set: { "notifications.$[].isRead": true },
-      },
-      { new: true }
+    await Notification.updateMany(
+      { recipient: userId, isRead: false },
+      { isRead: true }
     );
-
-    if (!result) {
-      return res.status(404).json({
-        success: false,
-        message: "Notifications not found",
-      });
-    }
 
     res.json({
       success: true,
@@ -133,7 +136,8 @@ export const markAllAsRead = async (req, res) => {
     console.error("Error marking all notifications as read:", error);
     res.status(500).json({
       success: false,
-      message: "Error marking all notifications as read",
+      message: "Error updating notifications",
+      error: error.message,
     });
   }
 };
@@ -169,4 +173,43 @@ export const addNotification = async (req, res) => {
     });
   }
 };
- 
+
+// Create a new notification
+export const createNotification = async (notificationData) => {
+  try {
+    const notification = new Notification(notificationData);
+    await notification.save();
+    return notification;
+  } catch (error) {
+    console.error("Error creating notification:", error);
+    throw error;
+  }
+};
+
+// Delete a notification
+export const deleteNotification = async (req, res) => {
+  try {
+    const notificationId = req.params.id;
+
+    const notification = await Notification.findByIdAndDelete(notificationId);
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: "Notification not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Notification deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting notification:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting notification",
+      error: error.message,
+    });
+  }
+};
