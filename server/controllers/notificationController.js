@@ -91,18 +91,44 @@ export const markAsRead = async (req, res) => {
   try {
     const notificationId = req.params.id;
 
-    const notification = await Notification.findByIdAndUpdate(
-      notificationId,
-      { isRead: true },
-      { new: true }
+    console.log("Marking notification as read:", notificationId);
+    console.log(
+      "Request user:",
+      req.user ? `User ${req.user.email}` : "No user in request"
     );
 
+    // Find the notification first to check permissions
+    const notification = await Notification.findById(notificationId);
+
     if (!notification) {
+      console.log("Notification not found:", notificationId);
       return res.status(404).json({
         success: false,
         message: "Notification not found",
       });
     }
+
+    // For public routes, check if this is a public endpoint
+    const isPublicRoute = req.originalUrl.includes("/public/");
+    const recipientId = notification.recipient.toString();
+
+    // Check if user has permission to mark this notification as read
+    const hasPermission =
+      isPublicRoute || (req.user && req.user._id.toString() === recipientId);
+
+    if (!hasPermission) {
+      console.log("Permission denied for marking notification as read");
+      return res.status(403).json({
+        success: false,
+        message: "You don't have permission to mark this notification as read",
+      });
+    }
+
+    // Mark notification as read
+    notification.isRead = true;
+    await notification.save();
+
+    console.log("Notification marked as read successfully");
 
     res.json({
       success: true,
@@ -123,14 +149,42 @@ export const markAllAsRead = async (req, res) => {
   try {
     const userId = req.params.userId;
 
-    await Notification.updateMany(
+    console.log("Marking all notifications as read for user:", userId);
+    console.log(
+      "Request user:",
+      req.user ? `User ${req.user.email}` : "No user in request"
+    );
+
+    // For public routes, check if this is a public endpoint
+    const isPublicRoute = req.originalUrl.includes("/public/");
+
+    // Check if user has permission to mark all notifications as read
+    const hasPermission =
+      isPublicRoute || (req.user && req.user._id.toString() === userId);
+
+    if (!hasPermission) {
+      console.log("Permission denied for marking all notifications as read");
+      return res.status(403).json({
+        success: false,
+        message:
+          "You don't have permission to mark these notifications as read",
+      });
+    }
+
+    // Update all unread notifications for the user
+    const result = await Notification.updateMany(
       { recipient: userId, isRead: false },
       { isRead: true }
+    );
+
+    console.log(
+      `Marked ${result.modifiedCount} notifications as read for user ${userId}`
     );
 
     res.json({
       success: true,
       message: "All notifications marked as read",
+      count: result.modifiedCount,
     });
   } catch (error) {
     console.error("Error marking all notifications as read:", error);

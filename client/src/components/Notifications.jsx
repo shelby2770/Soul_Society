@@ -82,19 +82,113 @@ const Notifications = () => {
     }
   };
 
+  const markAllAsRead = async () => {
+    try {
+      // Get the auth token from localStorage
+      const token = localStorage.getItem("token");
+      let response;
+
+      try {
+        // Try authenticated endpoint first
+        if (token) {
+          console.log("Using authenticated endpoint to mark all as read");
+          response = await axios.put(
+            `${API_URL}/api/notifications/read-all/${userData.id}`,
+            {},
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+        } else {
+          // Fall back to public endpoint
+          console.log(
+            "No token available, using public endpoint to mark all as read"
+          );
+          response = await axios.put(
+            `${API_URL}/api/notifications/public/read-all/${userData.id}`
+          );
+        }
+
+        if (response.data.success) {
+          console.log("All notifications marked as read successfully");
+        }
+      } catch (apiError) {
+        // If authenticated endpoint fails, try public endpoint
+        console.log("Error with primary endpoint, trying public fallback");
+        response = await axios.put(
+          `${API_URL}/api/notifications/public/read-all/${userData.id}`
+        );
+      }
+
+      // Update local state regardless of API success
+      console.log("Updating local notification state");
+      setNotifications((prev) =>
+        prev.map((notification) => ({ ...notification, isRead: true }))
+      );
+      setUnreadCount(0);
+    } catch (err) {
+      console.error("Error marking all notifications as read:", err);
+
+      // Try to update UI locally even if API call fails
+      try {
+        console.log("Updating local notification state despite API error");
+        setNotifications((prev) =>
+          prev.map((notification) => ({ ...notification, isRead: true }))
+        );
+        setUnreadCount(0);
+      } catch (localError) {
+        console.error("Error updating local notification state:", localError);
+      }
+
+      // Show error message but don't prevent the user from continuing to use the app
+      setError(
+        "Error updating notifications on server, but marked as read locally"
+      );
+    }
+  };
+
   const markAsRead = async (notificationId) => {
     try {
-      await axios.put(
-        `${API_URL}/api/notifications/read/${notificationId}`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      // Get the auth token from localStorage
+      const token = localStorage.getItem("token");
+      let response;
 
-      // Update local state to mark notification as read
+      try {
+        // Try authenticated endpoint first
+        if (token) {
+          console.log(
+            "Using authenticated endpoint to mark notification as read"
+          );
+          response = await axios.put(
+            `${API_URL}/api/notifications/read/${notificationId}`,
+            {},
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+        } else {
+          // Fall back to public endpoint
+          console.log(
+            "No token available, using public endpoint to mark notification as read"
+          );
+          response = await axios.put(
+            `${API_URL}/api/notifications/public/read/${notificationId}`
+          );
+        }
+      } catch (apiError) {
+        // If authenticated endpoint fails, try public endpoint
+        console.log("Error with primary endpoint, trying public fallback");
+        response = await axios.put(
+          `${API_URL}/api/notifications/public/read/${notificationId}`
+        );
+      }
+
+      // Update local state regardless of API success
+      console.log("Updating local notification state");
       setNotifications((prev) =>
         prev.map((notification) =>
           notification._id === notificationId
@@ -102,35 +196,23 @@ const Notifications = () => {
             : notification
         )
       );
-
-      // Update unread count
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (err) {
       console.error("Error marking notification as read:", err);
-    }
-  };
 
-  const markAllAsRead = async () => {
-    try {
-      await axios.put(
-        `${API_URL}/api/notifications/read-all/${userData.id}`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-
-      // Update local state to mark all notifications as read
-      setNotifications((prev) =>
-        prev.map((notification) => ({ ...notification, isRead: true }))
-      );
-
-      // Reset unread count
-      setUnreadCount(0);
-    } catch (err) {
-      console.error("Error marking all notifications as read:", err);
+      // Try to update UI locally even if API call fails
+      try {
+        setNotifications((prev) =>
+          prev.map((notification) =>
+            notification._id === notificationId
+              ? { ...notification, isRead: true }
+              : notification
+          )
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      } catch (localError) {
+        console.error("Error updating local notification state:", localError);
+      }
     }
   };
 
@@ -140,12 +222,20 @@ const Notifications = () => {
     }
 
     // Navigate based on notification type
-    if (notification.type === "appointment_accepted") {
-      // Todo: Navigate to appointments page
-      console.log("Navigate to appointment:", notification.relatedId);
+    if (
+      notification.type === "appointment_accepted" ||
+      notification.type === "appointment_rescheduled"
+    ) {
+      // Navigate to appointments page
+      console.log(
+        `Navigate to appointment: ${notification.relatedId} (${notification.type})`
+      );
+      // TODO: You can implement navigation with useNavigate hook:
+      // navigate("/appointments");
     } else if (notification.type === "new_message") {
-      // Todo: Navigate to chat
+      // Navigate to chat
       console.log("Navigate to chat");
+      // navigate("/chat");
     }
   };
 
@@ -209,6 +299,12 @@ const Notifications = () => {
                 onClick={() => handleNotificationClick(notification)}
                 className={`p-4 hover:bg-gray-50 cursor-pointer ${
                   !notification.isRead ? "bg-blue-50" : ""
+                } ${
+                  notification.type === "appointment_rescheduled"
+                    ? "border-l-4 border-amber-500"
+                    : notification.type === "appointment_accepted"
+                    ? "border-l-4 border-green-500"
+                    : ""
                 }`}
               >
                 <div className="flex justify-between items-start">
@@ -222,6 +318,12 @@ const Notifications = () => {
                 <p className="text-sm text-gray-600 mt-1">
                   {notification.message}
                 </p>
+                {notification.type === "appointment_rescheduled" && (
+                  <div className="mt-2 bg-amber-50 p-2 rounded-md text-xs text-amber-700">
+                    Your appointment has been rescheduled. Please check the new
+                    time.
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -144,20 +144,63 @@ export const rescheduleAppointment = async (req, res) => {
   try {
     const appointmentId = req.params.id;
     const { date, time } = req.body;
+
+    // Find and update the appointment
     const appointment = await Appointment.findByIdAndUpdate(
       appointmentId,
       { status: "Rescheduled", date, time, updatedAt: Date.now() },
       { new: true }
-    ).populate("patientId", "name email");
+    )
+      .populate("patientId", "name email")
+      .populate("doctorId", "name email specialization");
 
     if (!appointment) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Appointment not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found",
+      });
     }
-    res.json({ success: true, appointment });
+
+    // Create a notification for the patient about the rescheduled appointment
+    try {
+      // Format date for better readability
+      const formattedDate = new Date(appointment.date).toLocaleDateString();
+
+      const notificationData = {
+        recipient: appointment.patientId._id,
+        sender: appointment.doctorId._id,
+        type: "appointment_rescheduled",
+        title: "Appointment Rescheduled",
+        message: `Dr. ${appointment.doctorId.name} has rescheduled your appointment to ${formattedDate} at ${appointment.time}.`,
+        relatedId: appointment._id,
+        relatedModel: "Appointment",
+      };
+
+      await createNotification(notificationData);
+      console.log(
+        "Rescheduling notification created for patient",
+        appointment.patientId.email
+      );
+    } catch (notificationError) {
+      console.error(
+        "Error creating rescheduling notification:",
+        notificationError
+      );
+      // Continue with the response even if notification fails
+    }
+
+    res.json({
+      success: true,
+      message: "Appointment rescheduled and patient notified",
+      appointment,
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Server error", error });
+    console.error("Error rescheduling appointment:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error rescheduling appointment",
+      error: error.message,
+    });
   }
 };
 

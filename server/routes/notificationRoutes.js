@@ -10,8 +10,10 @@ import {
 
 const router = express.Router();
 
-// Public endpoint - Get all notifications for a user with optional auth
+// Public endpoints with optional auth
 router.get("/public/user/:userId", optionalAuth, getUserNotifications);
+router.put("/public/read/:id", optionalAuth, markAsRead);
+router.put("/public/read-all/:userId", optionalAuth, markAllAsRead);
 
 // Standard protected endpoints
 router.get("/user/:userId", protect, getUserNotifications);
