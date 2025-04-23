@@ -3,10 +3,13 @@ import { useAuth } from "../contexts/AuthContext";
 import { Button } from "../components/ui/button";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import BookAppointmentModal from "../components/modals/BookAppointmentModal";
 
 const Doctors = () => {
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
 
   const { user, userData, fetchUserData } = useAuth();
   // console.log(user, user.email);
@@ -57,9 +60,9 @@ const Doctors = () => {
     fetchDoctors();
   }, []);
 
-  const handleBookAppointment = (doctorId) => {
-    // TODO: Implement appointment booking functionality
-    console.log("Book appointment with doctor:", doctorId);
+  const handleBookAppointment = (doctor) => {
+    setSelectedDoctor(doctor);
+    setShowBookingModal(true);
   };
 
   // Debug logging for render conditions
@@ -95,37 +98,50 @@ const Doctors = () => {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {doctors.map((doctor) => (
-            <div
-              key={doctor._id}
-              className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
-            >
-              <div className="flex items-center justify-center w-20 h-20 mx-auto mb-4 bg-blue-100 rounded-full">
-                <span className="text-2xl text-blue-600">
-                  {doctor.name.charAt(0)}
-                </span>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {doctors.map((doctor) => (
+              <div
+                key={doctor._id}
+                className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+              >
+                <div className="flex items-center justify-center w-20 h-20 mx-auto mb-4 bg-blue-100 rounded-full">
+                  <span className="text-2xl text-blue-600">
+                    {doctor.name.charAt(0)}
+                  </span>
+                </div>
+                <h2 className="text-xl font-semibold text-center mb-2 text-gray-900">
+                  {doctor.name}
+                </h2>
+                {doctor.specialization && (
+                  <p className="text-blue-600 text-center text-sm font-medium mb-2">
+                    {doctor.specialization}
+                  </p>
+                )}
+                <p className="text-gray-600 text-center mb-4">{doctor.email}</p>
+                <div className="flex justify-center">
+                  <Button
+                    onClick={() => handleBookAppointment(doctor)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full transition-colors"
+                  >
+                    Book Appointment
+                  </Button>
+                </div>
               </div>
-              <h2 className="text-xl font-semibold text-center mb-2 text-gray-900">
-                {doctor.name}
-              </h2>
-              {doctor.specialization && (
-                <p className="text-blue-600 text-center text-sm font-medium mb-2">
-                  {doctor.specialization}
-                </p>
-              )}
-              <p className="text-gray-600 text-center mb-4">{doctor.email}</p>
-              <div className="flex justify-center">
-                <Button
-                  onClick={() => handleBookAppointment(doctor._id)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full transition-colors"
-                >
-                  Book Appointment
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+
+          {selectedDoctor && (
+            <BookAppointmentModal
+              isOpen={showBookingModal}
+              onClose={() => {
+                setShowBookingModal(false);
+                setSelectedDoctor(null);
+              }}
+              doctor={selectedDoctor}
+            />
+          )}
+        </>
       )}
     </div>
   );

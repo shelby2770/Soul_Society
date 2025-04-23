@@ -1,5 +1,7 @@
 import express from "express";
 import User from "../models/User.js";
+import { protect } from "../middleware/authMiddleware.js";
+import { getUserByEmail, getProfile } from "../controllers/userController.js";
 
 const router = express.Router();
 
@@ -46,41 +48,10 @@ router.get("/doctors", async (req, res) => {
 });
 
 // Get user by email
-router.get("/email/:email", async (req, res) => {
-  try {
-    const { email } = req.params;
-    console.log("Fetching user with email:", email);
+router.get("/email/:email", protect, getUserByEmail);
 
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      console.log("User not found for email:", email);
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    console.log("User found:", user);
-    res.json({
-      success: true,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        type: user.type,
-        createdAt: user.createdAt,
-        lastLogin: user.lastLogin,
-      },
-    });
-  } catch (error) {
-    console.error("Error fetching user:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error fetching user data",
-    });
-  }
-});
+// Get user profile
+router.get("/profile", protect, getProfile);
 
 // Update user by email
 router.put("/email/:email", async (req, res) => {

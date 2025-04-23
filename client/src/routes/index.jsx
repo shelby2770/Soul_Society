@@ -12,13 +12,16 @@ import Chat from "../pages/Chat";
 import DoctorDashboard from "../pages/DoctorDashboard";
 import { AuthProvider } from "../contexts/AuthContext";
 import { ToastProvider } from "../contexts/ToastContext";
+import { NotificationProvider } from "../contexts/NotificationContext";
 
 // Create a wrapper component that includes the AuthProvider
 const AppWithProviders = () => {
   return (
     <ToastProvider>
       <AuthProvider>
-        <Layout />
+        <NotificationProvider>
+          <Layout />
+        </NotificationProvider>
       </AuthProvider>
     </ToastProvider>
   );

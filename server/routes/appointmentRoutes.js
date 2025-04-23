@@ -3,6 +3,9 @@ import * as appointmentController from "../controllers/appointmentController.js"
 
 const router = express.Router();
 
+// Book a new appointment
+router.post("/book", appointmentController.bookAppointment);
+
 // Get all appointments for a doctor
 router.get("/doctor/:doctorId", appointmentController.getAppointmentsByDoctor);
 

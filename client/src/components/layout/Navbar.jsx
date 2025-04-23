@@ -5,6 +5,7 @@ import LoginModal from "../modals/LoginModal";
 import { useAuth } from "../../contexts/AuthContext";
 import { FiUser, FiLogOut } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
+import NotificationDropdown from "../NotificationDropdown";
 
 const Navbar = () => {
   const location = useLocation();
@@ -16,8 +17,12 @@ const Navbar = () => {
   // console.log(user, user.email);
   const navigate = useNavigate();
 
+  // List of public routes that don't require authentication
+  const publicRoutes = ["/login", "/signup", "/", "/about", "/contact"];
+
   useEffect(() => {
-    if (!user) {
+    // Only redirect to login if user is not authenticated and trying to access a protected route
+    if (!user && !publicRoutes.includes(location.pathname)) {
       navigate("/login");
       return;
     }
@@ -25,7 +30,7 @@ const Navbar = () => {
     const loadInitialData = async () => {
       console.log(userData);
       try {
-        if (user.email) {
+        if (user?.email) {
           await fetchUserData(user.email);
           // Redirect doctor to dashboard after login
           if (userData?.type === "doctor" && location.pathname === "/") {
@@ -37,7 +42,9 @@ const Navbar = () => {
       }
     };
 
-    loadInitialData();
+    if (user) {
+      loadInitialData();
+    }
   }, [user, navigate, userData?.type, location.pathname]);
 
   // Debug output for auth state changes
@@ -189,6 +196,9 @@ const Navbar = () => {
           <div className="flex items-center space-x-4">
             {user ? (
               <div className="flex items-center gap-4">
+                {/* Notification Dropdown */}
+                <NotificationDropdown />
+
                 {/* Profile Icon with Dropdown */}
                 <div className="relative profile-menu-container">
                   <button

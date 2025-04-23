@@ -5,6 +5,7 @@ import { FiEye, FiEyeOff } from "react-icons/fi";
 import { useToast } from "../contexts/ToastContext";
 import { auth } from "../config/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
+import axios from "axios";
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -158,10 +159,8 @@ const SignUp = () => {
     e.preventDefault();
     setError("");
 
-    const currentPassword =
-      userType === "patient" ? patientPassword : doctorPassword;
-    const currentConfirmPassword =
-      userType === "patient" ? patientConfirmPassword : doctorConfirmPassword;
+    const currentPassword = userType === "patient" ? patientPassword : doctorPassword;
+    const currentConfirmPassword = userType === "patient" ? patientConfirmPassword : doctorConfirmPassword;
 
     // Password validation
     if (!validatePassword(currentPassword, userType)) {
@@ -176,8 +175,7 @@ const SignUp = () => {
     setLoading(true);
     try {
       // Prepare the user data based on type
-      const userData =
-        userType === "patient"
+      const userData = userType === "patient"
           ? {
               type: "patient",
               name: patientName,
@@ -190,7 +188,7 @@ const SignUp = () => {
               email: doctorEmail,
               password: doctorPassword,
               specialization: specialization,
-              cvFileName: cvFileName,
+            cvFileName: cvFileName || "none", // Provide default if not uploaded
             };
 
       // First create the user in Firebase
@@ -202,22 +200,18 @@ const SignUp = () => {
 
       console.log("Firebase user created:", userCredential.user);
 
-      // Then make API call to backend
-      const response = await fetch("http://localhost:5000/api/auth/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(userData),
-      });
+      // Then make API call to backend for signup
+      const signupResponse = await axios.post(
+        "http://localhost:5000/api/auth/signup",
+        {
+          ...userData,
+          firebaseId: userCredential.user.uid,
+        }
+      );
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        // If backend signup fails, delete the Firebase user
-        await userCredential.user.delete();
-        throw new Error(data.message || "Failed to create account");
-      }
+      if (signupResponse.data.success) {
+        // Store the token in localStorage
+        localStorage.setItem("token", signupResponse.data.data.token);
 
       // Log success message
       console.log("✅ User created successfully:", {
@@ -238,10 +232,23 @@ const SignUp = () => {
 
       // Redirect to home page
       navigate("/");
+      } else {
+        throw new Error(signupResponse.data.message || "Failed to create account");
+      }
     } catch (err) {
-      console.error("❌ Signup Error:", err.message);
-      setError(err.message || "Failed to create account. Please try again.");
-      showError(err.message || "Failed to create account. Please try again.");
+      console.error("❌ Signup Error:", err);
+      // If backend signup fails, delete the Firebase user if it was created
+      try {
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          await currentUser.delete();
+        }
+      } catch (deleteError) {
+        console.error("Error deleting Firebase user:", deleteError);
+      }
+      
+      setError(err.response?.data?.message || err.message || "Failed to create account. Please try again.");
+      showError(err.response?.data?.message || err.message || "Failed to create account. Please try again.");
     } finally {
       setLoading(false);
     }

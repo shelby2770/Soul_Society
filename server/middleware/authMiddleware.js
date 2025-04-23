@@ -3,10 +3,10 @@ import User from "../models/User.js";
 
 // Middleware to protect routes
 export const protect = async (req, res, next) => {
-  try {
-    let token;
+  let token;
 
-    // Check if token exists in headers
+  try {
+    // Get token from Authorization header
     if (
       req.headers.authorization &&
       req.headers.authorization.startsWith("Bearer")

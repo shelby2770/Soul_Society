@@ -1,23 +1,37 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { useAuth } from "../contexts/AuthContext";
 
 const DoctorDashboard = () => {
+  const { user, userData } = useAuth();
+
   // Sample doctor profile data
   const doctorProfile = {
-    name: "Dr. John Doe",
-    specialization: "Psychiatrist",
-    email: "johndoe@example.com",
-    phone: "+1 234 567 890",
+    name: userData?.name || "Loading...",
+    specialization: userData?.specialization || "Psychiatrist",
+    email: user?.email || "Loading...",
+    phone: userData?.phone || "Not provided",
   };
 
   // State for medicines and appointments fetched from backend
   const [medicines, setMedicines] = useState([
-    { id: 1, name: "Paracetamol", dosage: "500mg", instructions: "Take twice daily after meals" },
-    { id: 2, name: "Amoxicillin", dosage: "250mg", instructions: "Take thrice daily for 7 days" },
+    {
+      id: 1,
+      name: "Paracetamol",
+      dosage: "500mg",
+      instructions: "Take twice daily after meals",
+    },
+    {
+      id: 2,
+      name: "Amoxicillin",
+      dosage: "250mg",
+      instructions: "Take thrice daily for 7 days",
+    },
   ]);
   const [appointments, setAppointments] = useState([]);
   const [payments, setPayments] = useState([]);
   const [totalPayments, setTotalPayments] = useState(0);
+  const [error, setError] = useState(null);
 
   // Form state for new medicine
   const [medicineName, setMedicineName] = useState("");
@@ -35,34 +49,52 @@ const DoctorDashboard = () => {
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
-        // Replace with actual doctor ID or email as needed
-        const doctorId = "doctorIdPlaceholder";
+        if (!userData?._id) {
+          console.log("No doctor ID available yet");
+          return;
+        }
 
-        const res = await axios.get(`${API_URL}/api/appointments/doctor/${doctorId}`);
+        console.log("Fetching appointments for doctor:", userData._id);
+        const res = await axios.get(
+          `${API_URL}/api/appointments/doctor/${userData._id}`
+        );
         if (res.data.success) {
+          console.log("Fetched appointments:", res.data.appointments);
           setAppointments(res.data.appointments);
         }
       } catch (error) {
         console.error("Error fetching appointments:", error);
+        setError("Failed to fetch appointments");
       }
     };
 
     const fetchPayments = async () => {
       try {
-        const doctorId = "doctorIdPlaceholder";
-        const res = await axios.get(`${API_URL}/api/appointments/payments/${doctorId}`);
+        if (!userData?._id) {
+          console.log("No doctor ID available yet");
+          return;
+        }
+
+        console.log("Fetching payments for doctor:", userData._id);
+        const res = await axios.get(
+          `${API_URL}/api/appointments/payments/${userData._id}`
+        );
         if (res.data.success) {
+          console.log("Fetched payments:", res.data.payments);
           setPayments(res.data.payments);
           setTotalPayments(res.data.totalAmount);
         }
       } catch (error) {
         console.error("Error fetching payments:", error);
+        setError("Failed to fetch payments");
       }
     };
 
-    fetchAppointments();
-    fetchPayments();
-  }, []);
+    if (user && userData?.type === "doctor") {
+      fetchAppointments();
+      fetchPayments();
+    }
+  }, [user, userData, API_URL]);
 
   // Handlers for adding medicine and appointment (local only)
   const handleAddMedicine = (e) => {
@@ -88,7 +120,11 @@ const DoctorDashboard = () => {
       type: appointmentType,
       date: appointmentDate,
       time: appointmentTime,
-      patient: { id: null, name: "New Patient", email: "newpatient@example.com" }, // Placeholder patient
+      patient: {
+        id: null,
+        name: "New Patient",
+        email: "newpatient@example.com",
+      }, // Placeholder patient
       status: "Pending",
     };
     setAppointments([...appointments, newAppointment]);
@@ -102,7 +138,9 @@ const DoctorDashboard = () => {
     try {
       await axios.put(`${API_URL}/api/appointments/accept/${id}`);
       setAppointments((prev) =>
-        prev.map((appt) => (appt._id === id ? { ...appt, status: "Accepted" } : appt))
+        prev.map((appt) =>
+          appt._id === id ? { ...appt, status: "Accepted" } : appt
+        )
       );
     } catch (error) {
       console.error("Error accepting appointment:", error);
@@ -117,7 +155,9 @@ const DoctorDashboard = () => {
       });
       setAppointments((prev) =>
         prev.map((appt) =>
-          appt._id === id ? { ...appt, status: "Rescheduled", date: newDate, time: newTime } : appt
+          appt._id === id
+            ? { ...appt, status: "Rescheduled", date: newDate, time: newTime }
+            : appt
         )
       );
     } catch (error) {
@@ -129,13 +169,27 @@ const DoctorDashboard = () => {
     <div className="container mx-auto px-4 py-8 mt-16">
       <h1 className="text-3xl font-bold mb-8">Doctor Dashboard</h1>
 
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
       {/* Doctor Profile Section */}
       <section className="mb-12 border p-4 rounded shadow-sm max-w-md">
         <h2 className="text-2xl font-semibold mb-4">Doctor Profile</h2>
-        <p><strong>Name:</strong> {doctorProfile.name}</p>
-        <p><strong>Specialization:</strong> {doctorProfile.specialization}</p>
-        <p><strong>Email:</strong> {doctorProfile.email}</p>
-        <p><strong>Phone:</strong> {doctorProfile.phone}</p>
+        <p>
+          <strong>Name:</strong> {doctorProfile.name}
+        </p>
+        <p>
+          <strong>Specialization:</strong> {doctorProfile.specialization}
+        </p>
+        <p>
+          <strong>Email:</strong> {doctorProfile.email}
+        </p>
+        <p>
+          <strong>Phone:</strong> {doctorProfile.phone}
+        </p>
       </section>
 
       {/* Medicine Prescription Section */}
@@ -191,9 +245,15 @@ const DoctorDashboard = () => {
             <ul className="space-y-2">
               {medicines.map((med) => (
                 <li key={med.id} className="border p-3 rounded shadow-sm">
-                  <p><strong>Name:</strong> {med.name}</p>
-                  <p><strong>Dosage:</strong> {med.dosage}</p>
-                  <p><strong>Instructions:</strong> {med.instructions}</p>
+                  <p>
+                    <strong>Name:</strong> {med.name}
+                  </p>
+                  <p>
+                    <strong>Dosage:</strong> {med.dosage}
+                  </p>
+                  <p>
+                    <strong>Instructions:</strong> {med.instructions}
+                  </p>
                 </li>
               ))}
             </ul>
@@ -250,34 +310,85 @@ const DoctorDashboard = () => {
           {appointments.length === 0 ? (
             <p>No appointments scheduled yet.</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="space-y-4">
               {appointments.map((appt) => (
-                <li key={appt._id || appt.id} className="border p-3 rounded shadow-sm">
-                  <p><strong>Type:</strong> {appt.type}</p>
-                  <p><strong>Date:</strong> {appt.date}</p>
-                  <p><strong>Time:</strong> {appt.time}</p>
-                  <p><strong>Status:</strong> {appt.status || "Pending"}</p>
-                  <p><strong>Patient:</strong> {appt.patient?.name} ({appt.patient?.email})</p>
-                  {appt.status !== "Accepted" && (
-                    <button
-                      onClick={() => handleAcceptAppointment(appt._id || appt.id)}
-                      className="mr-2 bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                <li
+                  key={appt._id}
+                  className="border p-4 rounded-lg shadow-sm bg-white"
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <p className="font-medium text-lg mb-1">
+                        {appt.patientId?.name || "Patient"}
+                      </p>
+                      <p className="text-gray-600">
+                        {appt.patientId?.email || "No email provided"}
+                      </p>
+                    </div>
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        appt.status === "Pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : appt.status === "Accepted"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-blue-100 text-blue-800"
+                      }`}
                     >
-                      Accept
+                      {appt.status}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Type</p>
+                      <p className="font-medium">{appt.type}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Amount</p>
+                      <p className="font-medium">${appt.amount}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Date</p>
+                      <p className="font-medium">
+                        {new Date(appt.date).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Time</p>
+                      <p className="font-medium">{appt.time}</p>
+                    </div>
+                  </div>
+                  <div className="flex space-x-3">
+                    {appt.status === "Pending" && (
+                      <button
+                        onClick={() => handleAcceptAppointment(appt._id)}
+                        className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors"
+                      >
+                        Accept
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        const newDate = prompt(
+                          "Enter new date (YYYY-MM-DD):",
+                          new Date(appt.date).toISOString().split("T")[0]
+                        );
+                        const newTime = prompt(
+                          "Enter new time (HH:MM):",
+                          appt.time
+                        );
+                        if (newDate && newTime) {
+                          handleRescheduleAppointment(
+                            appt._id,
+                            newDate,
+                            newTime
+                          );
+                        }
+                      }}
+                      className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+                    >
+                      Reschedule
                     </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      const newDate = prompt("Enter new date (YYYY-MM-DD):", appt.date);
-                      const newTime = prompt("Enter new time (HH:MM):", appt.time);
-                      if (newDate && newTime) {
-                        handleRescheduleAppointment(appt._id || appt.id, newDate, newTime);
-                      }
-                    }}
-                    className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
-                  >
-                    Reschedule
-                  </button>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -288,16 +399,28 @@ const DoctorDashboard = () => {
       {/* Payment Tracking Section */}
       <section>
         <h2 className="text-2xl font-semibold mb-4">Payment Tracking</h2>
-        <p><strong>Total Payments Received:</strong> ${totalPayments}</p>
+        <p>
+          <strong>Total Payments Received:</strong> ${totalPayments}
+        </p>
         {payments.length === 0 ? (
           <p>No payments received yet.</p>
         ) : (
           <ul className="space-y-2">
             {payments.map((payment) => (
-              <li key={payment._id || payment.id} className="border p-3 rounded shadow-sm">
-                <p><strong>Appointment ID:</strong> {payment._id || payment.id}</p>
-                <p><strong>Amount:</strong> ${payment.amount}</p>
-                <p><strong>Date:</strong> {new Date(payment.date).toLocaleDateString()}</p>
+              <li
+                key={payment._id || payment.id}
+                className="border p-3 rounded shadow-sm"
+              >
+                <p>
+                  <strong>Appointment ID:</strong> {payment._id || payment.id}
+                </p>
+                <p>
+                  <strong>Amount:</strong> ${payment.amount}
+                </p>
+                <p>
+                  <strong>Date:</strong>{" "}
+                  {new Date(payment.date).toLocaleDateString()}
+                </p>
               </li>
             ))}
           </ul>

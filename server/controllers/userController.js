@@ -18,25 +18,59 @@ export const getUserByEmail = async (req, res) => {
     // Return user data
     res.json({
       success: true,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        type: user.type,
-        isVerified: user.isVerified,
-        createdAt: user.createdAt,
-        lastLogin: user.lastLogin,
-        ...(user.type === "doctor" && {
-          specialization: user.specialization,
-        }),
+      data: {
+        user: {
+          id: user._id,
+          type: user.type,
+          name: user.name,
+          email: user.email,
+          isVerified: user.isVerified,
+          ...(user.type === "doctor" && {
+            specialization: user.specialization,
+          }),
+        },
       },
     });
   } catch (error) {
-    console.error("Error fetching user by email:", error);
+    console.error("Error fetching user:", error);
     res.status(500).json({
       success: false,
       message: "Error fetching user data",
-      error: error.message,
+    });
+  }
+};
+
+// Get user profile
+export const getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("-password");
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: user._id,
+          type: user.type,
+          name: user.name,
+          email: user.email,
+          isVerified: user.isVerified,
+          ...(user.type === "doctor" && {
+            specialization: user.specialization,
+          }),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching profile:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching profile data",
     });
   }
 };
