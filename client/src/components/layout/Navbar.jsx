@@ -23,9 +23,14 @@ const Navbar = () => {
     }
 
     const loadInitialData = async () => {
+      console.log(userData);
       try {
         if (user.email) {
           await fetchUserData(user.email);
+          // Redirect doctor to dashboard after login
+          if (userData?.type === "doctor" && location.pathname === "/") {
+            navigate("/doctor-dashboard");
+          }
         }
       } catch (error) {
         console.error("Error loading user data:", error);
@@ -33,7 +38,7 @@ const Navbar = () => {
     };
 
     loadInitialData();
-  }, [user, navigate]);
+  }, [user, navigate, userData?.type, location.pathname]);
 
   // Debug output for auth state changes
   useEffect(() => {
@@ -93,14 +98,21 @@ const Navbar = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex md:items-center md:space-x-8">
             <Link
-              to="/"
+              to={
+                user && userData?.type === "doctor" ? "/doctor-dashboard" : "/"
+              }
               className={`text-sm transition-colors h-10 leading-loose ${
-                location.pathname === "/"
+                location.pathname ===
+                (user && userData?.type === "doctor"
+                  ? "/doctor-dashboard"
+                  : "/")
                   ? "text-blue-700 font-medium"
                   : "text-gray-900 hover:text-blue-600"
               }`}
             >
-              Home
+              {user && userData?.type === "doctor"
+                ? "Doctor Dashboard"
+                : "Home"}
             </Link>
             <Link
               to="/about"
@@ -159,16 +171,18 @@ const Navbar = () => {
             >
               Contact
             </Link>
-            <Link
-              to="/doctor-dashboard"
-              className={`text-sm transition-colors h-10 leading-loose ${
-                location.pathname === "/doctor-dashboard"
-                  ? "text-blue-700 font-medium"
-                  : "text-gray-900 hover:text-blue-600"
-              }`}
-            >
-              Doctor Dashboard
-            </Link>
+            {/* {user && userData?.type === "doctor" && (
+              <Link
+                to="/doctor-dashboard"
+                className={`text-sm transition-colors h-10 leading-loose ${
+                  location.pathname === "/doctor-dashboard"
+                    ? "text-blue-700 font-medium"
+                    : "text-gray-900 hover:text-blue-600"
+                }`}
+              >
+                Doctor Dashboard
+              </Link>
+            )} */}
           </div>
 
           {/* Auth Buttons */}
@@ -337,15 +351,24 @@ const Navbar = () => {
             </div>
             <div className="mt-3 space-y-1">
               <Link
-                to="/"
+                to={
+                  user && userData?.type === "doctor"
+                    ? "/doctor-dashboard"
+                    : "/"
+                }
                 className={`block px-3 py-2 rounded-md text-base font-medium ${
-                  location.pathname === "/"
+                  location.pathname ===
+                  (user && userData?.type === "doctor"
+                    ? "/doctor-dashboard"
+                    : "/")
                     ? "text-blue-700 bg-blue-50"
                     : "text-gray-900 hover:text-blue-600 hover:bg-gray-50"
                 }`}
                 onClick={() => setIsMenuOpen(false)}
               >
-                Home
+                {user && userData?.type === "doctor"
+                  ? "Doctor Dashboard"
+                  : "Home"}
               </Link>
               <Link
                 to="/about"
@@ -412,17 +435,19 @@ const Navbar = () => {
               >
                 Contact
               </Link>
-              <Link
-                to="/doctor-dashboard"
-                className={`block px-3 py-2 rounded-md text-base font-medium ${
-                  location.pathname === "/doctor-dashboard"
-                    ? "text-blue-700 bg-blue-50"
-                    : "text-gray-900 hover:text-blue-600 hover:bg-gray-50"
-                }`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Doctor Dashboard
-              </Link>
+              {/* {user && userData?.type === "doctor" && (
+                <Link
+                  to="/doctor-dashboard"
+                  className={`block px-3 py-2 rounded-md text-base font-medium ${
+                    location.pathname === "/doctor-dashboard"
+                      ? "text-blue-700 bg-blue-50"
+                      : "text-gray-900 hover:text-blue-600 hover:bg-gray-50"
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Doctor Dashboard
+                </Link>
+              )} */}
             </div>
             <div className="pt-4 pb-3 border-t border-gray-200">
               {user ? (
