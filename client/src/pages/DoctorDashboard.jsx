@@ -49,14 +49,17 @@ const DoctorDashboard = () => {
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
-        if (!userData?._id) {
-          console.log("No doctor ID available yet");
+        if (!userData?.id) {
+          console.log(
+            "No doctor ID available yet. Current userData:",
+            userData
+          );
           return;
         }
 
-        console.log("Fetching appointments for doctor:", userData._id);
+        console.log("Fetching appointments for doctor:", userData.id);
         const res = await axios.get(
-          `${API_URL}/api/appointments/doctor/${userData._id}`
+          `${API_URL}/api/appointments/doctor/${userData.id}`
         );
         if (res.data.success) {
           console.log("Fetched appointments:", res.data.appointments);
@@ -70,14 +73,17 @@ const DoctorDashboard = () => {
 
     const fetchPayments = async () => {
       try {
-        if (!userData?._id) {
-          console.log("No doctor ID available yet");
+        if (!userData?.id) {
+          console.log(
+            "No doctor ID available yet. Current userData:",
+            userData
+          );
           return;
         }
 
-        console.log("Fetching payments for doctor:", userData._id);
+        console.log("Fetching payments for doctor:", userData.id);
         const res = await axios.get(
-          `${API_URL}/api/appointments/payments/${userData._id}`
+          `${API_URL}/api/appointments/payments/${userData.id}`
         );
         if (res.data.success) {
           console.log("Fetched payments:", res.data.payments);

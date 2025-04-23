@@ -47,8 +47,8 @@ router.get("/doctors", async (req, res) => {
   }
 });
 
-// Get user by email
-router.get("/email/:email", protect, getUserByEmail);
+// Get user by email - removed authentication middleware
+router.get("/email/:email", getUserByEmail);
 
 // Get user profile
 router.get("/profile", protect, getProfile);

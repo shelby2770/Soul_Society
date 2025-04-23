@@ -4,38 +4,40 @@ import User from "../models/User.js";
 export const getUserByEmail = async (req, res) => {
   try {
     const { email } = req.params;
+    console.log("Fetching user with email:", email);
 
     // Find user by email
     const user = await User.findOne({ email }).select("-password");
 
     if (!user) {
+      console.log("User not found for email:", email);
       return res.status(404).json({
         success: false,
         message: "User not found",
       });
     }
 
+    console.log("User found:", user.email);
     // Return user data
     res.json({
       success: true,
-      data: {
-        user: {
-          id: user._id,
-          type: user.type,
-          name: user.name,
-          email: user.email,
-          isVerified: user.isVerified,
-          ...(user.type === "doctor" && {
-            specialization: user.specialization,
-          }),
-        },
+      user: {
+        id: user._id,
+        type: user.type,
+        name: user.name,
+        email: user.email,
+        isVerified: user.isVerified,
+        ...(user.type === "doctor" && {
+          specialization: user.specialization,
+        }),
       },
     });
   } catch (error) {
-    console.error("Error fetching user:", error);
+    console.error("Error fetching user by email:", error);
     res.status(500).json({
       success: false,
       message: "Error fetching user data",
+      error: error.message,
     });
   }
 };
