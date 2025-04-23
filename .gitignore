@@ -35,9 +35,9 @@ lerna-debug.log*
 *.sw?
 
 # Environment variables
-.env
-.env.*
-!.env.example
+# .env
+# .env.*
+# !.env.example
 
 # Cursor specific
 .cursorrules 
