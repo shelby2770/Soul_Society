@@ -14,6 +14,7 @@ import PatientDashboard from "../pages/PatientDashboard";
 import { AuthProvider } from "../contexts/AuthContext";
 import { ToastProvider } from "../contexts/ToastContext";
 import { NotificationProvider } from "../contexts/NotificationContext";
+import Survey from "../pages/survey";
 
 // Create a wrapper component that includes the AuthProvider
 const AppWithProviders = () => {
@@ -76,6 +77,10 @@ export const router = createBrowserRouter([
       {
         path: "*",
         element: <NotFound />,
+      },
+      {
+        path: "survey",
+        element: <Survey />,
       },
     ],
   },
