@@ -12,6 +12,12 @@ const notificationSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    recipientFirebaseId: {
+      type: String,
+    },
+    senderFirebaseId: {
+      type: String,
+    },
     type: {
       type: String,
       enum: [
@@ -19,6 +25,9 @@ const notificationSchema = new mongoose.Schema(
         "appointment_rescheduled",
         "new_message",
         "appointment_reminder",
+        "chat_request_approved",
+        "chat_request_declined",
+        "chat_request_new",
       ],
       required: true,
     },
@@ -36,7 +45,7 @@ const notificationSchema = new mongoose.Schema(
     },
     relatedModel: {
       type: String,
-      enum: ["Appointment", "Message"],
+      enum: ["Appointment", "Message", "ChatRequest"],
     },
     isRead: {
       type: Boolean,

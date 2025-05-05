@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../contexts/AuthContext";
 import { FiBell } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 
 const Notifications = () => {
   const { user, userData } = useAuth();
@@ -10,6 +11,7 @@ const Notifications = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -26,11 +28,15 @@ const Notifications = () => {
 
       // Get the auth token from localStorage
       const token = localStorage.getItem("token");
+      console.log(
+        "[Notifications] Fetching notifications for user:",
+        userData?.id
+      );
 
       // Try authenticated endpoint first if token exists
       if (token) {
         try {
-          console.log("Trying authenticated endpoint for notifications");
+          console.log("[Notifications] Trying authenticated endpoint");
           const response = await axios.get(
             `${API_URL}/api/notifications/user/${userData.id}`,
             {
@@ -41,6 +47,27 @@ const Notifications = () => {
           );
 
           if (response.data.success) {
+            console.log(
+              "[Notifications] Authenticated endpoint success:",
+              response.data.notifications.length,
+              "notifications"
+            );
+            console.log(
+              "[Notifications] Types received:",
+              response.data.notifications.map((n) => n.type)
+            );
+
+            // Log any chat request notifications specifically
+            const chatRequestNotifications = response.data.notifications.filter(
+              (n) =>
+                n.type === "chat_request_approved" ||
+                n.type === "chat_request_declined"
+            );
+            console.log(
+              "[Notifications] Chat request notifications:",
+              chatRequestNotifications.length
+            );
+
             setNotifications(response.data.notifications);
             setUnreadCount(
               response.data.notifications.filter((n) => !n.isRead).length
@@ -50,26 +77,49 @@ const Notifications = () => {
           }
         } catch (authError) {
           console.log(
-            "Authenticated endpoint failed, falling back to public endpoint"
+            "[Notifications] Authenticated endpoint failed:",
+            authError.message
           );
           // Continue to try public endpoint
         }
       }
 
       // Fall back to public endpoint if token doesn't exist or authenticated request failed
-      console.log("Using public endpoint for notifications");
+      console.log("[Notifications] Using public endpoint");
       const publicResponse = await axios.get(
         `${API_URL}/api/notifications/public/user/${userData.id}`
       );
 
       if (publicResponse.data.success) {
+        console.log(
+          "[Notifications] Public endpoint success:",
+          publicResponse.data.notifications.length,
+          "notifications"
+        );
+        console.log(
+          "[Notifications] Types received:",
+          publicResponse.data.notifications.map((n) => n.type)
+        );
+
+        // Log any chat request notifications specifically
+        const chatRequestNotifications =
+          publicResponse.data.notifications.filter(
+            (n) =>
+              n.type === "chat_request_approved" ||
+              n.type === "chat_request_declined"
+          );
+        console.log(
+          "[Notifications] Chat request notifications:",
+          chatRequestNotifications.length
+        );
+
         setNotifications(publicResponse.data.notifications);
         setUnreadCount(
           publicResponse.data.notifications.filter((n) => !n.isRead).length
         );
       }
     } catch (err) {
-      console.error("Error fetching notifications:", err);
+      console.error("[Notifications] Error fetching notifications:", err);
       if (err.response?.status === 401) {
         setError("Please log in again to view notifications");
       } else if (err.response?.status === 403) {
@@ -230,17 +280,45 @@ const Notifications = () => {
       console.log(
         `Navigate to appointment: ${notification.relatedId} (${notification.type})`
       );
-      // TODO: You can implement navigation with useNavigate hook:
-      // navigate("/appointments");
+      navigate("/appointments");
     } else if (notification.type === "new_message") {
       // Navigate to chat
       console.log("Navigate to chat");
-      // navigate("/chat");
+      navigate("/chat");
+    } else if (
+      notification.type === "chat_request_approved" ||
+      notification.type === "chat_request_declined"
+    ) {
+      // If approved, navigate to chat
+      if (notification.type === "chat_request_approved") {
+        navigate("/chat");
+      }
+    } else if (notification.type === "chat_request_new") {
+      // For doctors, navigate to chat page to see pending requests
+      navigate("/chat");
     }
   };
 
   const toggleNotifications = () => {
     setIsOpen(!isOpen);
+  };
+
+  // Helper to get notification styling based on type
+  const getNotificationStyle = (type) => {
+    switch (type) {
+      case "appointment_accepted":
+        return "border-l-4 border-green-500";
+      case "appointment_rescheduled":
+        return "border-l-4 border-amber-500";
+      case "chat_request_approved":
+        return "border-l-4 border-blue-500";
+      case "chat_request_declined":
+        return "border-l-4 border-red-500";
+      case "chat_request_new":
+        return "border-l-4 border-purple-500";
+      default:
+        return "";
+    }
   };
 
   return (
@@ -299,13 +377,7 @@ const Notifications = () => {
                 onClick={() => handleNotificationClick(notification)}
                 className={`p-4 hover:bg-gray-50 cursor-pointer ${
                   !notification.isRead ? "bg-blue-50" : ""
-                } ${
-                  notification.type === "appointment_rescheduled"
-                    ? "border-l-4 border-amber-500"
-                    : notification.type === "appointment_accepted"
-                    ? "border-l-4 border-green-500"
-                    : ""
-                }`}
+                } ${getNotificationStyle(notification.type)}`}
               >
                 <div className="flex justify-between items-start">
                   <p className="text-sm font-medium text-gray-900">
@@ -322,6 +394,21 @@ const Notifications = () => {
                   <div className="mt-2 bg-amber-50 p-2 rounded-md text-xs text-amber-700">
                     Your appointment has been rescheduled. Please check the new
                     time.
+                  </div>
+                )}
+                {notification.type === "chat_request_approved" && (
+                  <div className="mt-2 bg-blue-50 p-2 rounded-md text-xs text-blue-700">
+                    You can now chat with this doctor.
+                  </div>
+                )}
+                {notification.type === "chat_request_declined" && (
+                  <div className="mt-2 bg-red-50 p-2 rounded-md text-xs text-red-700">
+                    Your chat request was declined.
+                  </div>
+                )}
+                {notification.type === "chat_request_new" && (
+                  <div className="mt-2 bg-purple-50 p-2 rounded-md text-xs text-purple-700">
+                    New chat request from a patient. Click to review.
                   </div>
                 )}
               </div>

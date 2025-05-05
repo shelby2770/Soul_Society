@@ -41,7 +41,10 @@ export const getUserNotifications = async (req, res) => {
     const userId = req.params.userId;
 
     // Add debug logging
-    console.log("Getting notifications for user:", userId);
+    console.log(
+      "[NotificationController] Getting notifications for user:",
+      userId
+    );
     console.log(
       "Request user object:",
       req.user ? `User found: ${req.user.email}` : "No user in request"
@@ -63,14 +66,50 @@ export const getUserNotifications = async (req, res) => {
       });
     }
 
-    // Fetch the notifications
-    const notifications = await Notification.find({ recipient: userId })
-      .populate("sender", "name email type")
-      .sort({ createdAt: -1 }); // Newest first
+    // Try to find if this is a Firebase user or MongoDB user
+    // First check if this is a valid MongoDB ID
+    let isValidMongoId = false;
+    try {
+      if (userId.match(/^[0-9a-fA-F]{24}$/)) {
+        isValidMongoId = true;
+      }
+    } catch (err) {
+      console.log("Not a valid MongoDB ID, treating as Firebase ID");
+    }
+
+    let notifications = [];
+
+    // First, try to find notifications by recipient MongoDB ID
+    if (isValidMongoId) {
+      console.log("Looking for notifications by recipient MongoDB ID");
+      notifications = await Notification.find({ recipient: userId })
+        .populate("sender", "name email type")
+        .sort({ createdAt: -1 }); // Newest first
+    }
+
+    // If no notifications found or not a MongoDB ID, try with Firebase ID
+    if (notifications.length === 0) {
+      console.log("Looking for notifications by recipientFirebaseId");
+      const firebaseNotifications = await Notification.find({
+        recipientFirebaseId: userId,
+      })
+        .populate("sender", "name email type")
+        .sort({ createdAt: -1 });
+
+      notifications = [...notifications, ...firebaseNotifications];
+    }
 
     console.log(
       `Found ${notifications.length} notifications for user ${userId}`
     );
+
+    // Log notification types for debugging
+    if (notifications.length > 0) {
+      console.log(
+        "Notification types:",
+        notifications.map((n) => n.type)
+      );
+    }
 
     res.json({
       success: true,

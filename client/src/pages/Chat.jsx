@@ -4,10 +4,12 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Button } from "../components/ui/button";
 import io from "socket.io-client";
+import { useToast } from "../contexts/ToastContext";
 
 const Chat = () => {
   const { user, userData } = useAuth();
   const navigate = useNavigate();
+  const { success, error: showError } = useToast();
   const [doctors, setDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -15,6 +17,8 @@ const Chat = () => {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState([]);
+  const [chatRequests, setChatRequests] = useState({});
+  const [pendingRequests, setPendingRequests] = useState([]);
   const messagesContainerRef = useRef(null); // Ref for the messages container
   const socketRef = useRef(null); // Ref for the socket connection
   const [activeUsers, setActiveUsers] = useState([]); // Track online users
@@ -747,6 +751,190 @@ const Chat = () => {
     }
   };
 
+  // Load pending chat requests for doctors
+  useEffect(() => {
+    if (!user || !userData || userData.type !== "doctor") return;
+
+    const fetchPendingRequests = async () => {
+      try {
+        const response = await axios.get(
+          `${API_URL}/api/chat/requests/pending/${userData.id || user.uid}`
+        );
+        if (response.data.success) {
+          setPendingRequests(response.data.requests || []);
+        }
+      } catch (error) {
+        console.error("[Chat] Error fetching pending chat requests:", error);
+      }
+    };
+
+    fetchPendingRequests();
+  }, [user, userData, API_URL]);
+
+  // Function to check if chat is allowed with a doctor
+  const isChatAllowed = (doctorId) => {
+    // If we have an existing conversation, chat is allowed
+    const hasConversation = conversations.some(
+      (conv) => conv.doctor._id === doctorId || conv.doctor.id === doctorId
+    );
+
+    if (hasConversation) return true;
+
+    // Check if we have an approved request
+    return chatRequests[doctorId] === "approved";
+  };
+
+  // Function to send a chat request to a doctor
+  const sendChatRequest = async (doctorId, doctorName) => {
+    try {
+      // Update UI immediately for better UX
+      setChatRequests((prev) => ({
+        ...prev,
+        [doctorId]: "pending",
+      }));
+
+      // Send request to server
+      const response = await axios.post(`${API_URL}/api/chat/requests`, {
+        patientId: userData.id || user.uid,
+        patientName: userData.name,
+        patientEmail: userData.email,
+        doctorId: doctorId,
+        message: `${userData.name} would like to chat with you.`,
+      });
+
+      if (response.data.success) {
+        success(`Chat request sent to Dr. ${doctorName}`);
+      } else {
+        // Reset state on failure
+        setChatRequests((prev) => ({
+          ...prev,
+          [doctorId]: undefined,
+        }));
+        showError("Failed to send chat request");
+      }
+    } catch (error) {
+      console.error("[Chat] Error sending chat request:", error);
+      // Reset state on error
+      setChatRequests((prev) => ({
+        ...prev,
+        [doctorId]: undefined,
+      }));
+      showError(
+        "Error sending chat request: " +
+          (error.response?.data?.message || error.message)
+      );
+    }
+  };
+
+  // Function for doctors to handle chat requests
+  const handleChatRequest = async (requestId, patientId, action) => {
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/chat/requests/${requestId}/${action}`,
+        {
+          doctorId: userData.id || user.uid,
+        }
+      );
+
+      if (response.data.success) {
+        success(
+          `Chat request ${action === "approve" ? "approved" : "declined"}`
+        );
+
+        // Update pending requests list
+        setPendingRequests((prev) =>
+          prev.filter((req) => req._id !== requestId)
+        );
+
+        // If approved, refresh the patients list
+        if (action === "approve" && userData.type === "doctor") {
+          // Fetch data again to refresh the patients list
+          const fetchPatients = async () => {
+            try {
+              // For doctors, get patients they have conversations with
+              console.log(
+                "Fetching doctor's MongoDB ID by email:",
+                userData.email
+              );
+              const doctorResponse = await axios.get(
+                `${API_URL}/api/users/email/${userData.email}`
+              );
+
+              if (doctorResponse.data.success && doctorResponse.data.user) {
+                const doctorId = doctorResponse.data.user.id;
+                console.log("Doctor MongoDB ID:", doctorId);
+
+                // Now fetch conversations for this doctor
+                const conversationsResponse = await axios
+                  .get(`${API_URL}/api/chat/conversations/${doctorId}`)
+                  .catch((error) => {
+                    console.log("No conversations found:", error);
+                    return { data: { success: true, conversations: [] } };
+                  });
+
+                if (conversationsResponse.data.success) {
+                  const conversations =
+                    conversationsResponse.data.conversations || [];
+                  setConversations(conversations);
+
+                  // Extract patient info from conversations
+                  const patientsList = conversations.map((conv) => ({
+                    _id: conv.patient._id,
+                    name: conv.patient.name,
+                    email: conv.patient.email,
+                    lastMessage: conv.lastMessage || "",
+                    lastMessageTime: conv.lastMessageTime,
+                  }));
+
+                  setPatients(patientsList);
+                }
+              }
+            } catch (error) {
+              console.error("Error fetching patients:", error);
+            }
+          };
+
+          fetchPatients();
+        }
+      } else {
+        showError(`Failed to ${action} chat request`);
+      }
+    } catch (error) {
+      console.error(`[Chat] Error ${action}ing chat request:`, error);
+      showError(
+        `Error ${action}ing request: ` +
+          (error.response?.data?.message || error.message)
+      );
+    }
+  };
+
+  // Check chat request status for a specific doctor
+  useEffect(() => {
+    if (!userData || userData.type !== "patient" || !selectedUser) return;
+
+    const fetchChatRequestStatus = async () => {
+      try {
+        const response = await axios.get(
+          `${API_URL}/api/chat/requests/status/${userData.id || user.uid}/${
+            selectedUser._id
+          }`
+        );
+
+        if (response.data.success) {
+          const status = response.data.status || "none";
+          setChatRequests((prev) => ({
+            ...prev,
+            [selectedUser._id]: status,
+          }));
+        }
+      } catch (error) {
+        console.error("[Chat] Error fetching chat request status:", error);
+      }
+    };
+
+    fetchChatRequestStatus();
+  }, [selectedUser, userData, API_URL]);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -818,45 +1006,110 @@ const Chat = () => {
               <>
                 {/* Chat Header - Patient View */}
                 <div className="p-4 border-b border-gray-200 bg-gray-50">
-                  <div className="flex items-center">
-                    <div className="relative">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                        <span className="text-blue-600 font-medium">
-                          {selectedUser.name.charAt(0)}
-                        </span>
-                      </div>
-                      {isUserActive(selectedUser._id) && (
-                        <div className="absolute bottom-0 right-2 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                      )}
-                    </div>
-                    <div>
-                      <div className="flex items-center">
-                        <h3 className="font-medium text-gray-800">
-                          {selectedUser.name}
-                        </h3>
-                        {isUserActive(selectedUser._id) && (
-                          <span className="ml-2 text-xs text-green-600 font-medium">
-                            • Online
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="relative">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                          <span className="text-blue-600 font-medium">
+                            {selectedUser.name.charAt(0)}
                           </span>
+                        </div>
+                        {isUserActive(selectedUser._id) && (
+                          <div className="absolute bottom-0 right-2 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                         )}
                       </div>
-                      {selectedUser.specialization && (
-                        <p className="text-sm text-blue-600">
-                          {selectedUser.specialization}
-                        </p>
-                      )}
+                      <div>
+                        <div className="flex items-center">
+                          <h3 className="font-medium text-gray-800">
+                            {selectedUser.name}
+                          </h3>
+                          {isUserActive(selectedUser._id) && (
+                            <span className="ml-2 text-xs text-green-600 font-medium">
+                              • Online
+                            </span>
+                          )}
+                        </div>
+                        {selectedUser.specialization && (
+                          <p className="text-sm text-blue-600">
+                            {selectedUser.specialization}
+                          </p>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Chat request status/button */}
+                    {!isChatAllowed(selectedUser._id) && (
+                      <div>
+                        {chatRequests[selectedUser._id] === "pending" ? (
+                          <span className="text-sm bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full">
+                            Request Pending
+                          </span>
+                        ) : chatRequests[selectedUser._id] === "declined" ? (
+                          <span className="text-sm bg-red-100 text-red-800 px-3 py-1 rounded-full">
+                            Request Declined
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() =>
+                              sendChatRequest(
+                                selectedUser._id,
+                                selectedUser.name
+                              )
+                            }
+                            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-sm"
+                          >
+                            Request to Chat
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Messages Area - Patient View */}
                 <div
                   className="flex-1 overflow-y-auto p-4 bg-gray-50"
-                  ref={
-                    userData?.type === "patient" ? messagesContainerRef : null
-                  }
+                  ref={messagesContainerRef}
                 >
-                  {messages.length === 0 ? (
+                  {!isChatAllowed(selectedUser._id) ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center p-6">
+                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-8 w-8 text-blue-500"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                          />
+                        </svg>
+                      </div>
+                      <h3 className="text-xl font-medium text-gray-800 mb-2">
+                        Chat permission required
+                      </h3>
+                      <p className="text-gray-500 max-w-md mb-4">
+                        You need permission from Dr. {selectedUser.name} to
+                        start a conversation.
+                        {chatRequests[selectedUser._id] === "pending" &&
+                          " Your request is pending approval."}
+                      </p>
+                      {!chatRequests[selectedUser._id] && (
+                        <button
+                          onClick={() =>
+                            sendChatRequest(selectedUser._id, selectedUser.name)
+                          }
+                          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
+                        >
+                          Request to Chat
+                        </button>
+                      )}
+                    </div>
+                  ) : messages.length === 0 ? (
                     <div className="flex justify-center items-center h-full">
                       <p className="text-gray-500">
                         No messages yet. Start a conversation!
@@ -901,34 +1154,36 @@ const Chat = () => {
                 </div>
 
                 {/* Message Input */}
-                <form
-                  onSubmit={handleSendMessage}
-                  className="p-4 border-t border-gray-200"
-                >
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          if (newMessage.trim()) {
-                            handleSendMessage(e);
+                {isChatAllowed(selectedUser._id) && (
+                  <form
+                    onSubmit={handleSendMessage}
+                    className="p-4 border-t border-gray-200"
+                  >
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            if (newMessage.trim()) {
+                              handleSendMessage(e);
+                            }
                           }
-                        }
-                      }}
-                      placeholder="Type your message..."
-                      className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white placeholder-gray-400 text-black"
-                    />
-                    <button
-                      type="submit"
-                      className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      Send
-                    </button>
-                  </div>
-                </form>
+                        }}
+                        placeholder="Type your message..."
+                        className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white placeholder-gray-400 text-black"
+                      />
+                      <button
+                        type="submit"
+                        className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        Send
+                      </button>
+                    </div>
+                  </form>
+                )}
               </>
             ) : (
               <div className="flex flex-col items-center justify-center h-full p-8 text-center">
@@ -974,6 +1229,56 @@ const Chat = () => {
             <h2 className="text-xl font-semibold mb-4 text-gray-800">
               Patients Who Contacted You
             </h2>
+
+            {/* Pending chat requests section */}
+            {pendingRequests.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-sm font-medium text-gray-700 mb-2 border-b border-gray-200 pb-2">
+                  Chat Requests ({pendingRequests.length})
+                </h3>
+                <div className="space-y-3">
+                  {pendingRequests.map((request) => (
+                    <div
+                      key={request._id}
+                      className="bg-yellow-50 border border-yellow-200 p-3 rounded-md"
+                    >
+                      <p className="text-sm font-medium text-gray-800 mb-1">
+                        {request.patientName}
+                      </p>
+                      <p className="text-xs text-gray-600 mb-2">
+                        {request.message}
+                      </p>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() =>
+                            handleChatRequest(
+                              request._id,
+                              request.patientId,
+                              "approve"
+                            )
+                          }
+                          className="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() =>
+                            handleChatRequest(
+                              request._id,
+                              request.patientId,
+                              "decline"
+                            )
+                          }
+                          className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {patients.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full p-4 text-center">
@@ -1079,9 +1384,7 @@ const Chat = () => {
                 {/* Messages Area - Doctor View */}
                 <div
                   className="flex-1 overflow-y-auto p-4 bg-gray-50"
-                  ref={
-                    userData?.type === "doctor" ? messagesContainerRef : null
-                  }
+                  ref={messagesContainerRef}
                 >
                   {messages.length === 0 ? (
                     <div className="flex justify-center items-center h-full">
