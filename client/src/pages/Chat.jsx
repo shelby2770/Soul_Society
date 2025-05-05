@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -20,180 +20,235 @@ const Chat = () => {
   const [activeUsers, setActiveUsers] = useState([]); // Track online users
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-  // Auto-scroll to bottom of messages container
-  const scrollToBottom = () => {
+  // Auto-scroll to bottom of messages container - wrapped in useCallback
+  const scrollToBottom = useCallback(() => {
     setTimeout(() => {
       if (messagesContainerRef.current) {
         const container = messagesContainerRef.current;
         container.scrollTop = container.scrollHeight;
       }
     }, 100);
-  };
+  }, [messagesContainerRef]); // Only depends on the ref
 
   // Helper to set messages and trigger scroll event
-  const updateMessages = (newMessages) => {
-    setMessages(newMessages);
-    // Scroll to bottom after state update
-    scrollToBottom();
-  };
+  const updateMessages = useCallback(
+    (newMessages) => {
+      setMessages(newMessages);
+      // Scroll to bottom after state update
+      scrollToBottom();
+    },
+    [scrollToBottom]
+  ); // Depends on scrollToBottom
 
-  // Initialize Socket.IO connection
+  // NEW SOCKET IMPLEMENTATION
   useEffect(() => {
-    // Only connect if user is logged in
     if (!user) return;
 
-    console.log("Initializing Socket.IO connection");
+    // Connect to Socket.IO server
+    console.log("[Socket] Initializing connection");
     const socket = io(API_URL);
 
     socket.on("connect", () => {
-      console.log("Socket.IO connected with ID:", socket.id);
+      console.log("[Socket] Connected successfully with ID:", socket.id);
 
-      // Once connected and if we have user data, emit online status
+      // Send online status when connected
       if (userData && userData.email) {
         // First get MongoDB ID for the current user
         axios
           .get(`${API_URL}/api/users/email/${userData.email}`)
           .then((response) => {
-            if (response.data.success && response.data.user._id) {
-              // Send online status to server
-              socket.emit("user_online", {
-                userId: response.data.user._id,
-                userName: userData.name,
-                userType: userData.type,
-              });
-              console.log(
-                "Emitted online status for user:",
-                response.data.user._id
-              );
+            if (response.data.success && response.data.user) {
+              const userId = response.data.user.id || response.data.user._id;
+              if (userId) {
+                // Send online status to server
+                socket.emit("user_online", {
+                  userId: userId,
+                  userName: userData.name,
+                  userType: userData.type,
+                  firebaseId: user.uid,
+                });
+                console.log("[Socket] Emitted online status for user:", userId);
+              }
             }
           })
           .catch((error) => {
-            console.error("Error getting user MongoDB ID:", error);
+            console.error("[Socket] Error getting user MongoDB ID:", error);
           });
       }
     });
 
-    // Listen for active users updates
+    socket.on("connect_error", (error) => {
+      console.error("[Socket] Connection error:", error);
+    });
+
     socket.on("active_users", (users) => {
-      console.log("Active users update:", users);
+      console.log("[Socket] Active users updated:", users);
       setActiveUsers(users);
     });
 
-    socket.on("connect_error", (error) => {
-      console.error("Socket.IO connection error:", error);
-    });
-
-    // Store socket in ref
+    // Store socket in ref for later use
     socketRef.current = socket;
 
-    // Clean up socket connection on unmount
+    // Clean up on unmount
     return () => {
-      console.log("Disconnecting Socket.IO");
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
+      console.log("[Socket] Disconnecting");
+      socket.disconnect();
     };
   }, [user, userData, API_URL]);
 
-  // Helper function to check if a user is active
-  const isUserActive = (userId) => {
-    return activeUsers.includes(userId);
-  };
-
-  // Join conversation room when selecting a user
+  // Handle joining conversation rooms when a user is selected
   useEffect(() => {
-    if (!selectedUser || !socketRef.current) return;
+    if (!socketRef.current || !selectedUser || !userData?.email) return;
 
-    // Function to join the appropriate conversation room
-    const joinConversationRoom = async () => {
+    const joinRoom = async () => {
       try {
-        // Get the current user's MongoDB ID
+        // First get the current user's MongoDB ID
+        console.log("[Socket] Getting current user ID for room joining");
         const userResponse = await axios.get(
           `${API_URL}/api/users/email/${userData.email}`
         );
 
-        if (!userResponse.data.success || !userResponse.data.user._id) {
+        if (!userResponse.data.success || !userResponse.data.user) {
+          console.error("[Socket] Could not get user ID for room joining");
+          return;
+        }
+
+        const currentUserId = userResponse.data.user.id;
+        const selectedUserId = selectedUser._id;
+
+        // Try to find existing conversation between these users
+        console.log("[Socket] Finding conversation between users");
+        const convResponse = await axios.get(
+          `${API_URL}/api/chat/conversations/between/${currentUserId}/${selectedUserId}`
+        );
+
+        if (convResponse.data.success && convResponse.data.conversation) {
+          const conversationId = convResponse.data.conversation._id;
+          console.log("[Socket] Joining conversation room:", conversationId);
+
+          // Leave any previous rooms first
+          socketRef.current.emit("leave_conversation", conversationId);
+
+          // Then join the new room
+          socketRef.current.emit("join_conversation", conversationId);
+        } else {
           console.log(
-            "Could not fetch current user MongoDB ID for socket room"
+            "[Socket] No existing conversation found, will be created on first message"
+          );
+        }
+      } catch (error) {
+        console.error("[Socket] Error joining conversation room:", error);
+      }
+    };
+
+    joinRoom();
+  }, [selectedUser, userData?.email, API_URL]);
+
+  // Listen for incoming messages
+  useEffect(() => {
+    if (!socketRef.current || !selectedUser) return;
+
+    console.log("[Socket] Setting up message listener");
+
+    // Keep track of processed message IDs to avoid duplicates
+    const processedMessageIds = new Set();
+
+    const handleReceiveMessage = (data) => {
+      console.log("[Socket] Received message:", data);
+
+      // If we have message data, create a new message object and add to chat
+      if (data && (data.content || (data.message && data.message.content))) {
+        const content = data.content || data.message?.content;
+        const senderId = data.sender || data.message?.sender;
+        const messageId =
+          data._id || data.message?._id || `socket-${Date.now()}`;
+
+        // Create a unique fingerprint for this message to detect duplicates
+        const messageFingerprint = `${messageId}-${content}-${senderId}`;
+
+        // Skip if we've already processed this message
+        if (processedMessageIds.has(messageFingerprint)) {
+          console.log(
+            "[Socket] Skipping already processed message:",
+            messageFingerprint
           );
           return;
         }
 
-        const currentUserMongoId = userResponse.data.user._id;
-        const selectedUserId = selectedUser._id;
+        // Add to processed set so we don't add it again
+        processedMessageIds.add(messageFingerprint);
 
-        // Find existing conversation ID
-        const response = await axios.get(
-          `${API_URL}/api/chat/conversations/between/${currentUserMongoId}/${selectedUserId}`
+        // Also check if we already have this message in our state
+        const isDuplicate = messages.some(
+          (msg) =>
+            msg.id === messageId ||
+            (msg.content === content &&
+              Math.abs(new Date(msg.timestamp) - new Date()) < 10000) // Within 10 seconds
         );
 
-        if (response.data.success && response.data.conversation) {
-          const conversationId = response.data.conversation._id;
-          console.log(
-            "Joining Socket.IO room for conversation:",
-            conversationId
+        if (isDuplicate) {
+          console.log("[Socket] Skipping duplicate message:", content);
+          return;
+        }
+
+        // Create a unique ID for this message
+        const uniqueId = `msg-${Date.now()}-${Math.random()
+          .toString(36)
+          .substr(2, 5)}`;
+
+        const newMessage = {
+          id: messageId || uniqueId, // Use server ID or generate a unique one
+          content: content,
+          timestamp:
+            data.createdAt ||
+            data.message?.createdAt ||
+            new Date().toISOString(),
+          sender: senderId === userData?.id ? "You" : selectedUser.name,
+        };
+
+        console.log("[Socket] Adding to messages:", newMessage);
+
+        // Use a callback to ensure we're working with the latest state
+        setMessages((prevMessages) => {
+          // Double-check for duplicates again
+          const alreadyExists = prevMessages.some(
+            (msg) =>
+              msg.id === newMessage.id ||
+              (msg.content === newMessage.content &&
+                Math.abs(
+                  new Date(msg.timestamp) - new Date(newMessage.timestamp)
+                ) < 5000)
           );
 
-          // Leave any previous conversation room
-          if (socketRef.current) {
-            socketRef.current.emit("leave_conversation", conversationId);
-
-            // Join new conversation room
-            socketRef.current.emit("join_conversation", conversationId);
+          if (alreadyExists) {
+            return prevMessages;
           }
-        }
-      } catch (error) {
-        console.error("Error joining conversation room:", error);
+
+          // Add the new message
+          const updatedMessages = [...prevMessages, newMessage];
+
+          // Scroll to bottom after a short delay
+          setTimeout(scrollToBottom, 100);
+
+          return updatedMessages;
+        });
       }
     };
 
-    joinConversationRoom();
-  }, [selectedUser, userData?.email, API_URL]);
+    // Register for the receive_message event
+    socketRef.current.on("receive_message", handleReceiveMessage);
 
-  // Listen for new messages from Socket.IO
-  useEffect(() => {
-    if (!socketRef.current) return;
-
-    // Handle new messages received via Socket.IO
-    const handleNewMessage = (messageData) => {
-      console.log("Received new message via Socket.IO:", messageData);
-
-      // Update the message list if it's for the current conversation
-      if (selectedUser && userData?._id) {
-        const isRelevantMessage =
-          (userData?.type === "patient" &&
-            messageData.doctor._id === selectedUser._id) ||
-          (userData?.type === "doctor" &&
-            messageData.patient._id === selectedUser._id);
-
-        if (isRelevantMessage) {
-          // Format the message
-          const newMessage = {
-            id: messageData.message._id,
-            sender:
-              messageData.message.sender._id === userData?._id
-                ? "You"
-                : selectedUser.name,
-            content: messageData.message.content,
-            timestamp: messageData.message.createdAt,
-          };
-
-          // Add message to existing messages
-          updateMessages([...messages, newMessage]);
-        }
-      }
-    };
-
-    // Set up event listener
-    socketRef.current.on("receive_message", handleNewMessage);
-
-    // Clean up event listener
+    // Clean up when component unmounts or selected user changes
     return () => {
-      if (socketRef.current) {
-        socketRef.current.off("receive_message", handleNewMessage);
-      }
+      socketRef.current.off("receive_message", handleReceiveMessage);
+      console.log("[Socket] Removed message listener");
     };
-  }, [selectedUser, messages, userData]);
+  }, [selectedUser, userData?.id, messages, scrollToBottom]); // Include scrollToBottom as a dependency
+
+  // Helper function to check if a user is active
+  const isUserActive = (userId) => {
+    return Array.isArray(activeUsers) && activeUsers.includes(userId);
+  };
 
   useEffect(() => {
     // Redirect if not logged in
@@ -262,7 +317,7 @@ const Chat = () => {
             return;
           }
 
-          const doctorId = doctorResponse.data.user._id;
+          const doctorId = doctorResponse.data.user.id;
           console.log("Doctor MongoDB ID:", doctorId);
 
           // Now fetch conversations where this doctor is a participant
@@ -328,13 +383,14 @@ const Chat = () => {
 
         if (
           !currentUserResponse.data.success ||
-          !currentUserResponse.data.user._id
+          !currentUserResponse.data.user ||
+          !currentUserResponse.data.user.id
         ) {
           console.log("Could not fetch current user MongoDB ID for refresh");
           return;
         }
 
-        const currentUserMongoId = currentUserResponse.data.user._id;
+        const currentUserMongoId = currentUserResponse.data.user.id;
         const selectedUserId = selectedUser._id;
 
         // Refresh the specific conversation between these two users instead of all conversations
@@ -485,7 +541,7 @@ const Chat = () => {
           if (
             !userResponse.data.success ||
             !userResponse.data.user ||
-            !userResponse.data.user._id
+            !userResponse.data.user.id
           ) {
             console.log(
               "Could not find current user by email:",
@@ -494,7 +550,7 @@ const Chat = () => {
             return;
           }
 
-          const currentUserMongoId = userResponse.data.user._id;
+          const currentUserMongoId = userResponse.data.user.id;
           const selectedUserId = selectedUserObj._id;
 
           console.log("Found current user MongoDB ID:", currentUserMongoId);
@@ -591,6 +647,7 @@ const Chat = () => {
     fetchConversation();
   };
 
+  // Update handleSendMessage to handle sending messages properly
   const handleSendMessage = async (e) => {
     e.preventDefault();
 
@@ -600,72 +657,67 @@ const Chat = () => {
     const messageContent = newMessage.trim();
     setNewMessage("");
 
-    // Show loading indicator or disable send button if needed
-    // setIsSending(true); // You could add this state if you want a loading indicator
-
     try {
-      // Debug the user objects
-      console.log("Current user:", user);
-      console.log("Selected user:", selectedUser);
-      console.log("UserData:", userData);
+      // Generate a truly unique ID for this message
+      const uniqueId = `local-${Date.now()}-${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
 
-      // Create mock backend users if needed
-      try {
-        // Try to create user account on backend if it doesn't exist yet
-        if (!userData?._id) {
-          console.log("Attempting to create user on backend...");
-          const createUserResponse = await axios.post(`${API_URL}/api/users`, {
-            name: user.displayName || user.email.split("@")[0],
-            email: user.email,
-            type: userData?.type || "patient",
-            firebaseId: user.uid,
-          });
-          console.log(
-            "Backend user creation response:",
-            createUserResponse.data
-          );
-        }
-      } catch (err) {
-        console.log("User might already exist on backend:", err);
-      }
-
-      // Get ids for messaging
-      const senderId = user.uid; // Use Firebase uid for now
-      const receiverId = selectedUser._id; // MongoDB ID for the doctor
-
-      console.log("Using sender ID:", senderId);
-      console.log("Using receiver ID:", receiverId);
-
-      // Verify we have valid IDs
-      if (!senderId || !receiverId) {
-        console.error("Missing IDs:", {
-          "user.uid": user?.uid,
-          "selectedUser._id": selectedUser?._id,
-        });
-        throw new Error("Missing user IDs");
-      }
-
-      // Send message through the API
-      const response = await axios.post(`${API_URL}/api/chat/messages`, {
-        senderId: senderId,
-        receiverId: receiverId,
+      // Add message to UI immediately for better UX
+      const tempMessage = {
+        id: uniqueId,
         content: messageContent,
-        // Add this field to help backend identify Firebase users
+        sender: "You",
+        timestamp: new Date().toISOString(),
+        pending: true, // Mark as pending so we can update it later
+      };
+
+      // Add to messages state
+      setMessages((prev) => [...prev, tempMessage]);
+
+      // Scroll to bottom
+      setTimeout(scrollToBottom, 50);
+
+      // Send message via REST API only - let the server handle Socket.IO
+      console.log("[API] Sending message");
+
+      // No need to get MongoDB ID since we're not using it
+      // Just send the message directly
+      const response = await axios.post(`${API_URL}/api/chat/messages`, {
+        senderId: user.uid,
+        receiverId: selectedUser._id,
+        content: messageContent,
         isFirebaseUser: true,
-        senderEmail: user.email, // Add email to help backend identify the user
+        senderEmail: user.email,
+        // Include our local ID to help with deduplication
+        clientMessageId: uniqueId,
       });
 
-      console.log("Message sent successfully:", response.data);
+      console.log("[API] Message sent response:", response.data);
 
       if (response.data.success) {
-        // Update the conversations list with the latest conversation
+        // Update the temp message with the real ID from the server response
+        if (response.data.message && response.data.message._id) {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === uniqueId
+                ? {
+                    ...msg,
+                    id: response.data.message._id,
+                    pending: false,
+                  }
+                : msg
+            )
+          );
+        }
+
+        // Let the server handle Socket.IO emission
+        // We're not going to emit from the client to avoid duplicates
+        // The server should emit to all clients including the sender
+
+        // Update conversations list
         if (response.data.conversation) {
           const updatedConversation = response.data.conversation;
-
-          // We don't need to manually update UI as Socket.IO will handle real-time updates
-          console.log("Socket.IO will update the conversation in real-time");
-
-          // Update conversations list
           setConversations((prevConversations) => {
             const existingIndex = prevConversations.findIndex(
               (conv) => conv._id === updatedConversation._id
@@ -684,10 +736,9 @@ const Chat = () => {
     } catch (error) {
       console.error("Error sending message:", error);
 
-      // Re-enable send button if needed
-      // setIsSending(false);
+      // Remove the pending message on error
+      setMessages((prev) => prev.filter((msg) => !msg.pending));
 
-      // Show detailed error message to user
       alert(
         `Failed to send message: ${
           error.response?.data?.message || error.message

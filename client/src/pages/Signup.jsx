@@ -159,8 +159,10 @@ const SignUp = () => {
     e.preventDefault();
     setError("");
 
-    const currentPassword = userType === "patient" ? patientPassword : doctorPassword;
-    const currentConfirmPassword = userType === "patient" ? patientConfirmPassword : doctorConfirmPassword;
+    const currentPassword =
+      userType === "patient" ? patientPassword : doctorPassword;
+    const currentConfirmPassword =
+      userType === "patient" ? patientConfirmPassword : doctorConfirmPassword;
 
     // Password validation
     if (!validatePassword(currentPassword, userType)) {
@@ -175,7 +177,8 @@ const SignUp = () => {
     setLoading(true);
     try {
       // Prepare the user data based on type
-      const userData = userType === "patient"
+      const userData =
+        userType === "patient"
           ? {
               type: "patient",
               name: patientName,
@@ -188,7 +191,7 @@ const SignUp = () => {
               email: doctorEmail,
               password: doctorPassword,
               specialization: specialization,
-            cvFileName: cvFileName || "none", // Provide default if not uploaded
+              cvFileName: cvFileName || "none", // Provide default if not uploaded
             };
 
       // First create the user in Firebase
@@ -213,27 +216,29 @@ const SignUp = () => {
         // Store the token in localStorage
         localStorage.setItem("token", signupResponse.data.data.token);
 
-      // Log success message
-      console.log("✅ User created successfully:", {
-        type: userType,
-        name: userData.name,
-        email: userData.email,
-        ...(userType === "doctor" && {
-          specialization: userData.specialization,
-        }),
-      });
+        // Log success message
+        console.log("✅ User created successfully:", {
+          type: userType,
+          name: userData.name,
+          email: userData.email,
+          ...(userType === "doctor" && {
+            specialization: userData.specialization,
+          }),
+        });
 
-      // Clear form and show success
-      setError("");
-      success("Account created successfully!");
+        // Clear form and show success
+        setError("");
+        success("Account created successfully!");
 
-      // Wait a moment to ensure Firebase auth state is updated
-      await new Promise((resolve) => setTimeout(resolve, 500));
+        // Wait a moment to ensure Firebase auth state is updated
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Redirect to home page
-      navigate("/");
+        // Redirect to home page
+        navigate("/");
       } else {
-        throw new Error(signupResponse.data.message || "Failed to create account");
+        throw new Error(
+          signupResponse.data.message || "Failed to create account"
+        );
       }
     } catch (err) {
       console.error("❌ Signup Error:", err);
@@ -246,9 +251,17 @@ const SignUp = () => {
       } catch (deleteError) {
         console.error("Error deleting Firebase user:", deleteError);
       }
-      
-      setError(err.response?.data?.message || err.message || "Failed to create account. Please try again.");
-      showError(err.response?.data?.message || err.message || "Failed to create account. Please try again.");
+
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to create account. Please try again."
+      );
+      showError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to create account. Please try again."
+      );
     } finally {
       setLoading(false);
     }
