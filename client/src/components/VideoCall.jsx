@@ -28,13 +28,25 @@ const VideoCall = ({ appointmentId, isDoctor, remoteName, onEndCall }) => {
         urls: [
           "stun:stun1.l.google.com:19302",
           "stun:stun2.l.google.com:19302",
+          "stun:stun3.l.google.com:19302",
+          "stun:stun4.l.google.com:19302",
         ],
       },
-      // Free TURN server (for demo only - in production use your own)
+      // Updated TURN servers
       {
-        urls: "turn:numb.viagenie.ca",
-        username: "webrtc@live.com",
-        credential: "muazkh",
+        urls: "turn:openrelay.metered.ca:80",
+        username: "openrelayproject",
+        credential: "openrelayproject",
+      },
+      {
+        urls: "turn:openrelay.metered.ca:443",
+        username: "openrelayproject",
+        credential: "openrelayproject",
+      },
+      {
+        urls: "turn:openrelay.metered.ca:443?transport=tcp",
+        username: "openrelayproject",
+        credential: "openrelayproject",
       },
     ],
     iceCandidatePoolSize: 10,
@@ -140,9 +152,12 @@ const VideoCall = ({ appointmentId, isDoctor, remoteName, onEndCall }) => {
 
     // Initialize socket connection
     const socket = io(API_URL, {
-      transports: ["websocket", "polling"],
+      transports: ["polling", "websocket"],
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      timeout: 20000,
+      forceNew: true,
+      upgrade: true,
     });
     socketRef.current = socket;
 
@@ -652,7 +667,7 @@ const VideoCall = ({ appointmentId, isDoctor, remoteName, onEndCall }) => {
       };
 
       // Log negotiation needed events
-      peerConnection.onnegotiationneeded = (event) => {
+      peerConnection.onnegotiationneeded = () => {
         console.log("Negotiation needed event fired");
         if (isDoctor) {
           setTimeout(() => createOffer(), 500);
@@ -957,26 +972,6 @@ const VideoCall = ({ appointmentId, isDoctor, remoteName, onEndCall }) => {
                   className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors"
                 >
                   Retry Connection
-                </button>
-                <button
-                  onClick={() => {
-                    navigator.mediaDevices
-                      .getUserMedia({ audio: true, video: true })
-                      .then((stream) => {
-                        showError(
-                          "Please accept camera/microphone permissions"
-                        );
-                        stream.getTracks().forEach((track) => track.stop());
-                      })
-                      .catch((err) =>
-                        showError(
-                          "Please check your camera/microphone settings"
-                        )
-                      );
-                  }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  Check Permissions
                 </button>
               </div>
             </div>
