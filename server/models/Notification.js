@@ -28,6 +28,7 @@ const notificationSchema = new mongoose.Schema(
         "chat_request_approved",
         "chat_request_declined",
         "chat_request_new",
+        "new_appointment",
       ],
       required: true,
     },

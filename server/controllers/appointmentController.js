@@ -48,6 +48,31 @@ export const bookAppointment = async (req, res) => {
       .populate("patientId", "name email")
       .populate("doctorId", "name email specialization");
 
+    // Create a notification for the doctor about the new appointment
+    try {
+      // Format date for better readability
+      const formattedDate = new Date(appointment.date).toLocaleDateString();
+
+      const notificationData = {
+        recipient: doctor._id,
+        sender: patient._id,
+        type: "new_appointment",
+        title: "New Appointment Request",
+        message: `${patient.name} has booked a ${type} appointment with you for ${formattedDate} at ${appointment.time}.`,
+        relatedId: appointment._id,
+        relatedModel: "Appointment",
+      };
+
+      await createNotification(notificationData);
+      console.log("Notification created for doctor", doctor.email);
+    } catch (notificationError) {
+      console.error(
+        "Error creating notification for doctor:",
+        notificationError
+      );
+      // Continue with the response even if notification fails
+    }
+
     res.status(201).json({
       success: true,
       message: "Appointment booked successfully",

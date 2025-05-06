@@ -279,7 +279,7 @@ const DoctorDashboard = () => {
               className="w-full border border-gray-300 rounded px-3 py-2"
             >
               <option value="Online">Online</option>
-              <option value="Offline">Offline</option>
+              <option value="In-Person">In-Person</option>
             </select>
           </div>
           <div>

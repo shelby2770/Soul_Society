@@ -68,7 +68,7 @@ const BookAppointmentModal = ({ isOpen, onClose, doctor }) => {
               required
             >
               <option value="Online">Online</option>
-              <option value="Offline">Offline</option>
+              <option value="In-Person">In-Person</option>
             </select>
           </div>
 
