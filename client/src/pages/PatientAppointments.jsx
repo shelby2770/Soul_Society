@@ -139,6 +139,7 @@ const PatientAppointments = () => {
         apptDate.getDate()
       );
 
+      // Check if date is today or in the future
       const result = appointmentDate >= todayDate;
       console.log("Future check:", {
         date,
@@ -293,36 +294,70 @@ const PatientAppointments = () => {
   const pastAppointmentIds = new Set(pastAppointments.map((appt) => appt._id));
 
   // Today's appointments (upcoming today and not in past)
-  const todayAppointments = validAppointments.filter(
-    (appt) =>
-      isUpcomingToday(appt.date, appt.time) && !pastAppointmentIds.has(appt._id)
-  );
-  console.log("Today's appointments after filter:", todayAppointments);
+  const todayAppointments = validAppointments.filter((appt) => {
+    // Skip if it's already classified as past
+    if (pastAppointmentIds.has(appt._id)) return false;
 
-  // Get appointment dates that are truly future (tomorrow and beyond)
-  const upcomingAppointments = validAppointments.filter((appt) => {
-    // Convert to date objects for comparison
+    // Check if the appointment is today
     const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
-
     const apptDate = new Date(appt.date);
 
-    // Check if it's a future date (must be at least tomorrow)
-    const isTomorrowOrLater = apptDate >= tomorrow;
+    return (
+      today.getDate() === apptDate.getDate() &&
+      today.getMonth() === apptDate.getMonth() &&
+      today.getFullYear() === apptDate.getFullYear()
+    );
+  });
+  console.log("Today's appointments after filter:", todayAppointments);
 
-    // Also check that it's not already categorized as past
-    const isNotPast = !pastAppointmentIds.has(appt._id);
+  // Today's appointment IDs for easy lookup
+  const todayAppointmentIds = new Set(
+    todayAppointments.map((appt) => appt._id)
+  );
 
-    // Debug log
-    if (isTomorrowOrLater) {
-      console.log(
-        `Appointment on ${appt.date} at ${appt.time} is in the future (tomorrow or later)`
+  // Get appointment dates that are truly future (not today and not past)
+  const upcomingAppointments = validAppointments.filter((appt) => {
+    try {
+      // Skip if it's already classified as past or today
+      if (
+        pastAppointmentIds.has(appt._id) ||
+        todayAppointmentIds.has(appt._id)
+      ) {
+        return false;
+      }
+
+      // Convert to date objects for comparison
+      const today = new Date();
+      const todayDateOnly = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate()
       );
-    }
 
-    return isTomorrowOrLater && isNotPast;
+      // Parse the appointment date
+      const apptDate = new Date(appt.date);
+      const apptDateOnly = new Date(
+        apptDate.getFullYear(),
+        apptDate.getMonth(),
+        apptDate.getDate()
+      );
+
+      // Check if it's a future date (not today)
+      const isFutureDate = apptDateOnly > todayDateOnly;
+
+      // Debug logging
+      console.log(`Appointment date check for ${appt.date}:`, {
+        date: appt.date,
+        parsedDate: apptDate.toISOString(),
+        isFutureDate,
+        shouldShowInUpcoming: isFutureDate,
+      });
+
+      return isFutureDate;
+    } catch (error) {
+      console.error("Error filtering upcoming appointment:", error);
+      return false;
+    }
   });
   console.log("Upcoming appointments after filter:", upcomingAppointments);
 
@@ -348,38 +383,31 @@ const PatientAppointments = () => {
           <section>
             <h2 className="text-xl font-semibold mb-4">Today's Appointments</h2>
             <div className="bg-white rounded-lg shadow overflow-hidden">
-              {validAppointments.filter((appt) =>
-                isUpcomingToday(appt.date, appt.time)
-              ).length > 0 ? (
+              {todayAppointments.length > 0 ? (
                 <ul className="divide-y divide-gray-200">
-                  {validAppointments
-                    .filter((appt) => isUpcomingToday(appt.date, appt.time))
-                    .map((appointment) => (
-                      <li
-                        key={appointment._id}
-                        className="p-4 hover:bg-gray-50"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium text-lg">
-                              Dr. {appointment.doctorId.name}
+                  {todayAppointments.map((appointment) => (
+                    <li key={appointment._id} className="p-4 hover:bg-gray-50">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium text-lg">
+                            Dr. {appointment.doctorId.name}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {appointment.doctorId.specialization}
+                          </p>
+                          <div className="mt-2 space-y-1">
+                            <p className="text-sm text-gray-600">
+                              <span className="font-medium">Time:</span>{" "}
+                              {appointment.time}
                             </p>
-                            <p className="text-sm text-gray-500">
-                              {appointment.doctorId.specialization}
+                            <p className="text-sm text-gray-600">
+                              <span className="font-medium">Type:</span>{" "}
+                              {appointment.type}
                             </p>
-                            <div className="mt-2 space-y-1">
-                              <p className="text-sm text-gray-600">
-                                <span className="font-medium">Time:</span>{" "}
-                                {appointment.time}
-                              </p>
-                              <p className="text-sm text-gray-600">
-                                <span className="font-medium">Type:</span>{" "}
-                                {appointment.type}
-                              </p>
-                              <p className="text-sm text-gray-600">
-                                <span className="font-medium">Status:</span>{" "}
-                                <span
-                                  className={`
+                            <p className="text-sm text-gray-600">
+                              <span className="font-medium">Status:</span>{" "}
+                              <span
+                                className={`
                                   ${
                                     appointment.status === "Pending"
                                       ? "text-yellow-600"
@@ -390,45 +418,45 @@ const PatientAppointments = () => {
                                       : "text-red-600"
                                   }
                                 `}
-                                >
-                                  {appointment.status}
-                                </span>
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-col space-y-2">
-                            {appointment.type === "Online" &&
-                              appointment.status === "Accepted" &&
-                              isTimeToJoinCall(
-                                appointment.date,
-                                appointment.time
-                              ) && (
-                                <Link
-                                  to={`/video-consultation/${appointment._id}`}
-                                  className="px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors flex items-center justify-center"
-                                >
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-4 w-4 mr-1"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                                    />
-                                  </svg>
-                                  Join Video Call
-                                </Link>
-                              )}
+                              >
+                                {appointment.status}
+                              </span>
+                            </p>
                           </div>
                         </div>
-                      </li>
-                    ))}
+
+                        <div className="flex flex-col space-y-2">
+                          {appointment.type === "Online" &&
+                            appointment.status === "Accepted" &&
+                            isTimeToJoinCall(
+                              appointment.date,
+                              appointment.time
+                            ) && (
+                              <Link
+                                to={`/video-consultation/${appointment._id}`}
+                                className="px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors flex items-center justify-center"
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-4 w-4 mr-1"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                  />
+                                </svg>
+                                Join Video Call
+                              </Link>
+                            )}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
                 </ul>
               ) : (
                 <p className="p-4 text-gray-500">
@@ -444,17 +472,9 @@ const PatientAppointments = () => {
               Upcoming Appointments
             </h2>
             <div className="bg-white rounded-lg shadow overflow-hidden">
-              {validAppointments.filter(
-                (appt) =>
-                  isFuture(appt.date) && !isUpcomingToday(appt.date, appt.time)
-              ).length > 0 ? (
+              {upcomingAppointments.length > 0 ? (
                 <ul className="divide-y divide-gray-200">
-                  {validAppointments
-                    .filter(
-                      (appt) =>
-                        isFuture(appt.date) &&
-                        !isUpcomingToday(appt.date, appt.time)
-                    )
+                  {upcomingAppointments
                     .sort((a, b) => new Date(a.date) - new Date(b.date))
                     .map((appointment) => (
                       <li
@@ -472,9 +492,14 @@ const PatientAppointments = () => {
                             <div className="mt-2 space-y-1">
                               <p className="text-sm text-gray-600">
                                 <span className="font-medium">Date:</span>{" "}
-                                {new Date(
-                                  appointment.date
-                                ).toLocaleDateString()}
+                                {new Date(appointment.date).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    year: "numeric",
+                                    month: "numeric",
+                                    day: "numeric",
+                                  }
+                                )}
                               </p>
                               <p className="text-sm text-gray-600">
                                 <span className="font-medium">Time:</span>{" "}
@@ -569,7 +594,14 @@ const PatientAppointments = () => {
                           <div className="mt-2 space-y-1">
                             <p className="text-sm text-gray-600">
                               <span className="font-medium">Date:</span>{" "}
-                              {new Date(appointment.date).toLocaleDateString()}
+                              {new Date(appointment.date).toLocaleDateString(
+                                "en-US",
+                                {
+                                  year: "numeric",
+                                  month: "numeric",
+                                  day: "numeric",
+                                }
+                              )}
                             </p>
                             <p className="text-sm text-gray-600">
                               <span className="font-medium">Time:</span>{" "}

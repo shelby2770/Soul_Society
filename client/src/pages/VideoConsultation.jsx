@@ -122,7 +122,7 @@ const VideoConsultation = () => {
         now.getFullYear() === apptDate.getFullYear();
 
       if (!isSameDay) {
-        console.log("Cannot join call: not the same day");
+        console.log("Cannot Join Video Call: not the same day");
         return false;
       }
 
@@ -138,7 +138,7 @@ const VideoConsultation = () => {
       const canJoin = diffInMinutes <= 20 && diffInMinutes >= -30;
 
       console.log(
-        `Join call time check: ${diffInMinutes.toFixed(
+        `Join Video Call time check: ${diffInMinutes.toFixed(
           1
         )} minutes until appointment, canJoin: ${canJoin}`
       );
