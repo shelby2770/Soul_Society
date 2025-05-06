@@ -100,22 +100,12 @@ const SignUp = () => {
       return false;
     }
 
-    if (type === "doctor" && (!hasNumbers || !/.*\d.*\d.*/.test(password))) {
-      setError("Password must contain at least two numbers");
-      return false;
-    } else if (type === "patient" && !hasNumbers) {
+    if (!hasNumbers) {
       setError("Password must contain at least one number");
       return false;
     }
 
-    if (
-      type === "doctor" &&
-      (!hasSpecialChar ||
-        !/.*[!@#$%^&*(),.?":{}|<>].*[!@#$%^&*(),.?":{}|<>].*/.test(password))
-    ) {
-      setError("Password must contain at least two special characters");
-      return false;
-    } else if (type === "patient" && !hasSpecialChar) {
+    if (!hasSpecialChar) {
       setError("Password must contain at least one special character");
       return false;
     }
