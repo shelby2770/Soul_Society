@@ -12,6 +12,10 @@ const appointmentSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    patientEmail: {
+      type: String,
+      required: false,
+    },
     type: {
       type: String,
       enum: ["Online", "In-Person"],

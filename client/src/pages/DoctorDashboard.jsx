@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../contexts/AuthContext";
+import { Link } from "react-router-dom";
 
 const DoctorDashboard = () => {
   const { user, userData } = useAuth();
@@ -44,6 +45,67 @@ const DoctorDashboard = () => {
   const [appointmentTime, setAppointmentTime] = useState("");
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+  // Check if appointment is today and upcoming (not in the past)
+  const isUpcomingToday = (date, time) => {
+    const today = new Date();
+    const apptDate = new Date(date);
+
+    // Check if same day
+    if (
+      today.getDate() === apptDate.getDate() &&
+      today.getMonth() === apptDate.getMonth() &&
+      today.getFullYear() === apptDate.getFullYear()
+    ) {
+      // Parse appointment time
+      const [hours, minutes] = time.split(":").map(Number);
+      const apptTime = new Date();
+      apptTime.setHours(hours, minutes, 0);
+
+      // Check if appointment is at least within 15 min of current time
+      return apptTime.getTime() - today.getTime() > -15 * 60 * 1000;
+    }
+
+    return false;
+  };
+
+  // Check if it's time to enable the Join Call button (20 minutes before appointment time)
+  const isTimeToJoinCall = (date, time) => {
+    try {
+      const now = new Date();
+      const apptDate = new Date(date);
+
+      // Check if it's the same day
+      const isSameDay =
+        now.getDate() === apptDate.getDate() &&
+        now.getMonth() === apptDate.getMonth() &&
+        now.getFullYear() === apptDate.getFullYear();
+
+      if (!isSameDay) return false;
+
+      // Parse appointment time
+      const [hours, minutes] = time.split(":").map(Number);
+      const appointmentTime = new Date();
+      appointmentTime.setHours(hours, minutes, 0);
+
+      // Calculate time difference in minutes
+      const diffInMinutes = (appointmentTime - now) / (1000 * 60);
+
+      // Allow joining 20 minutes before the appointment time and until 30 minutes after
+      const canJoin = diffInMinutes <= 20 && diffInMinutes >= -30;
+
+      console.log(
+        `Doctor join button for ${time}: ${diffInMinutes.toFixed(
+          1
+        )} minutes until appointment, canJoin: ${canJoin}`
+      );
+
+      return canJoin;
+    } catch (error) {
+      console.error("Error in isTimeToJoinCall:", error);
+      return false;
+    }
+  };
 
   // Fetch appointments and payments on mount
   useEffect(() => {
@@ -394,6 +456,30 @@ const DoctorDashboard = () => {
                     >
                       Reschedule
                     </button>
+                    {appt.type === "Online" &&
+                      appt.status === "Accepted" &&
+                      isTimeToJoinCall(appt.date, appt.time) && (
+                        <Link
+                          to={`/video-consultation/${appt._id}`}
+                          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors flex items-center"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5 mr-1"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                            />
+                          </svg>
+                          Join Call
+                        </Link>
+                      )}
                   </div>
                 </li>
               ))}

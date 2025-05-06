@@ -9,6 +9,15 @@ router.post("/book", appointmentController.bookAppointment);
 // Get all appointments for a doctor
 router.get("/doctor/:doctorId", appointmentController.getAppointmentsByDoctor);
 
+// Get all appointments for a patient
+router.get(
+  "/patient/:patientId",
+  appointmentController.getAppointmentsByPatient
+);
+
+// Get appointment by ID
+router.get("/:id", appointmentController.getAppointmentById);
+
 // Accept an appointment
 router.put("/accept/:id", appointmentController.acceptAppointment);
 

@@ -39,11 +39,34 @@ app.use("/api/notifications", notificationRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error("Server Error:", err.stack);
+
+  // Check for specific MongoDB errors
+  if (err.name === "CastError" && err.kind === "ObjectId") {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid ID format",
+      error: "The provided ID is not in a valid format",
+    });
+  }
+
+  // Handle validation errors
+  if (err.name === "ValidationError") {
+    return res.status(400).json({
+      success: false,
+      message: "Validation Error",
+      error: err.message,
+    });
+  }
+
+  // Send appropriate error response
   res.status(500).json({
     success: false,
-    message: "Something went wrong!",
-    error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    message: "Something went wrong on the server",
+    error:
+      process.env.NODE_ENV === "development"
+        ? err.message
+        : "Internal Server Error",
   });
 });
 

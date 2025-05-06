@@ -179,6 +179,18 @@ const Navbar = () => {
                   Chat
                 </Link>
               )}
+            {user && userData?.type === "patient" && (
+              <Link
+                to="/appointments"
+                className={`text-sm transition-colors h-10 leading-loose ${
+                  location.pathname === "/appointments"
+                    ? "text-blue-700 font-medium"
+                    : "text-gray-900 hover:text-blue-600"
+                }`}
+              >
+                My Appointments
+              </Link>
+            )}
             <Link
               to="/contact"
               className={`text-sm transition-colors h-10 leading-loose ${
@@ -450,6 +462,19 @@ const Navbar = () => {
                     Chat
                   </Link>
                 )}
+              {user && userData?.type === "patient" && (
+                <Link
+                  to="/appointments"
+                  className={`block px-3 py-2 rounded-md text-base font-medium ${
+                    location.pathname === "/appointments"
+                      ? "text-blue-700 bg-blue-50"
+                      : "text-gray-900 hover:text-blue-600 hover:bg-gray-50"
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  My Appointments
+                </Link>
+              )}
               <Link
                 to="/contact"
                 className={`block px-3 py-2 rounded-md text-base font-medium ${

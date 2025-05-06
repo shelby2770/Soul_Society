@@ -11,6 +11,8 @@ import Profile from "../pages/Profile";
 import Chat from "../pages/Chat";
 import DoctorDashboard from "../pages/DoctorDashboard";
 import PatientDashboard from "../pages/PatientDashboard";
+import PatientAppointments from "../pages/PatientAppointments";
+import VideoConsultation from "../pages/VideoConsultation";
 import { AuthProvider } from "../contexts/AuthContext";
 import { ToastProvider } from "../contexts/ToastContext";
 import { NotificationProvider } from "../contexts/NotificationContext";
@@ -57,6 +59,14 @@ export const router = createBrowserRouter([
       {
         path: "patient-dashboard",
         element: <PatientDashboard />,
+      },
+      {
+        path: "appointments",
+        element: <PatientAppointments />,
+      },
+      {
+        path: "video-consultation/:appointmentId",
+        element: <VideoConsultation />,
       },
       {
         path: "login",

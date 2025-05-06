@@ -33,6 +33,7 @@ export const bookAppointment = async (req, res) => {
     const appointment = new Appointment({
       doctorId,
       patientId: patient._id, // Use the found patient's ID
+      patientEmail: patient.email, // Store email as fallback for identification
       type,
       date,
       time,
@@ -241,5 +242,142 @@ export const getPaymentsByDoctor = async (req, res) => {
     res.json({ success: true, payments, totalAmount });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error", error });
+  }
+};
+
+// Get appointment by ID
+export const getAppointmentById = async (req, res) => {
+  try {
+    const appointmentId = req.params.id;
+
+    const appointment = await Appointment.findById(appointmentId)
+      .populate("patientId", "name email")
+      .populate("doctorId", "name email specialization");
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      appointment,
+    });
+  } catch (error) {
+    console.error("Error fetching appointment:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching appointment",
+      error: error.message,
+    });
+  }
+};
+
+// Get all appointments for a patient
+export const getAppointmentsByPatient = async (req, res) => {
+  try {
+    const patientId = req.params.patientId;
+    console.log("Finding appointments for patient ID:", patientId);
+
+    // Log incoming request details
+    console.log(
+      `Request to get appointments for patient ${patientId} at ${new Date().toISOString()}`
+    );
+
+    let appointments = [];
+
+    // Check if patientId looks like an email
+    const isEmail = patientId.includes("@");
+
+    if (isEmail) {
+      // First try to get the patient by email to get their ID
+      const patientByEmail = await User.findOne({ email: patientId }).exec();
+
+      if (patientByEmail) {
+        console.log(
+          `Found patient by email: ${patientByEmail.name} with ID: ${patientByEmail._id}`
+        );
+        // Try to find appointments using the patient's proper MongoDB ID
+        appointments = await Appointment.find({ patientId: patientByEmail._id })
+          .populate("doctorId", "name email specialization")
+          .sort({ date: 1, time: 1 });
+
+        console.log(
+          `Found ${appointments.length} appointments using patient MongoDB ID`
+        );
+      }
+
+      // If no appointments found by ID, try by email field
+      if (appointments.length === 0) {
+        console.log("No appointments found by ID, trying by email field");
+        const emailAppointments = await Appointment.find({
+          patientEmail: patientId,
+        })
+          .populate("doctorId", "name email specialization")
+          .sort({ date: 1, time: 1 });
+
+        console.log(
+          `Found ${emailAppointments.length} appointments by email field`
+        );
+        appointments = emailAppointments;
+      }
+    } else {
+      // If not an email, try the normal way by ID
+      try {
+        console.log(`Looking for appointments with patientId: ${patientId}`);
+        appointments = await Appointment.find({ patientId })
+          .populate("doctorId", "name email specialization")
+          .sort({ date: 1, time: 1 });
+
+        console.log(
+          `Found ${appointments.length} appointments by direct ID lookup`
+        );
+      } catch (err) {
+        console.error("Error in direct ID lookup:", err.message);
+      }
+    }
+
+    console.log(`Total appointments found for patient: ${appointments.length}`);
+
+    // Debug appointments data
+    if (appointments.length > 0) {
+      const debugAppointments = appointments.map((appt) => ({
+        id: appt._id,
+        doctorName: appt.doctorId?.name || "No doctor name",
+        date: appt.date,
+        time: appt.time,
+        type: appt.type,
+        status: appt.status,
+      }));
+      console.log(
+        "Appointments found:",
+        JSON.stringify(debugAppointments, null, 2)
+      );
+    }
+
+    // Check for today's appointments specifically
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayAppointments = appointments.filter((appt) => {
+      const apptDate = new Date(appt.date);
+      apptDate.setHours(0, 0, 0, 0);
+      return apptDate.getTime() === today.getTime();
+    });
+
+    if (todayAppointments.length > 0) {
+      console.log(`Found ${todayAppointments.length} appointments for today`);
+    }
+
+    res.json({ success: true, appointments });
+  } catch (error) {
+    console.error("Error fetching patient appointments:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching patient appointments",
+      error: error.message,
+    });
   }
 };

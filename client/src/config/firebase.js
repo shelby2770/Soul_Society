@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
+import { getFirestore } from "firebase/firestore";
 
 import {
   getAuth,
@@ -22,6 +23,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const auth = getAuth(app);
+const db = getFirestore(app);
 
 // Set persistence to LOCAL
 setPersistence(auth, browserLocalPersistence)
@@ -44,4 +46,4 @@ googleProvider.addScope("email");
 //   login_hint: "",
 // });
 
-export { auth, googleProvider };
+export { auth, googleProvider, db };

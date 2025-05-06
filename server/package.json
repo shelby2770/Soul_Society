@@ -9,6 +9,8 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
+    "agora-access-token": "^2.0.4",
+    "agora-rtc-sdk-ng": "^4.23.3",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
