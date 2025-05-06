@@ -25,7 +25,6 @@ const SignUp = () => {
   const [doctorPassword, setDoctorPassword] = useState("");
   const [doctorConfirmPassword, setDoctorConfirmPassword] = useState("");
   const [specialization, setSpecialization] = useState("");
-  const [cvFile, setCvFile] = useState(null);
   const [cvFileName, setCvFileName] = useState("");
 
   // Common states
@@ -270,47 +269,38 @@ const SignUp = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setCvFile(file);
       setCvFileName(file.name);
     }
   };
 
   const generateStrongPassword = () => {
-    const length = userType === "patient" ? 12 : 14;
+    // Generate a random length between 12-20 characters
+    const length = Math.floor(Math.random() * 9) + 12; // Random length between 12-20
+
     const uppercaseChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const lowercaseChars = "abcdefghijklmnopqrstuvwxyz";
     const numberChars = "0123456789";
     const specialChars = '!@#$%^&*(),.?":{}|<>';
 
+    // Ensure at least one character of each type
     let password = "";
-
     password +=
       uppercaseChars[Math.floor(Math.random() * uppercaseChars.length)];
     password +=
       lowercaseChars[Math.floor(Math.random() * lowercaseChars.length)];
+    password += numberChars[Math.floor(Math.random() * numberChars.length)];
+    password += specialChars[Math.floor(Math.random() * specialChars.length)];
 
-    if (userType === "doctor") {
-      password += numberChars[Math.floor(Math.random() * numberChars.length)];
-      password += numberChars[Math.floor(Math.random() * numberChars.length)];
-    } else {
-      password += numberChars[Math.floor(Math.random() * numberChars.length)];
-    }
-
-    if (userType === "doctor") {
-      password += specialChars[Math.floor(Math.random() * specialChars.length)];
-      password += specialChars[Math.floor(Math.random() * specialChars.length)];
-    } else {
-      password += specialChars[Math.floor(Math.random() * specialChars.length)];
-    }
-
+    // Fill the rest with random characters
     const allChars =
       uppercaseChars + lowercaseChars + numberChars + specialChars;
     const remainingLength = length - password.length;
+
     for (let i = 0; i < remainingLength; i++) {
       password += allChars[Math.floor(Math.random() * allChars.length)];
     }
 
-    // Shuffle the password
+    // Shuffle the password to randomize character positions
     password = password
       .split("")
       .sort(() => Math.random() - 0.5)
