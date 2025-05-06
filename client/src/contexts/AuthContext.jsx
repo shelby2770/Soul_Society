@@ -14,7 +14,7 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
 } from "firebase/auth";
-import { auth } from "../config/firebase";
+import { auth, googleProvider } from "../config/firebase";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "./ToastContext";
 import axios from "axios";
@@ -35,6 +35,20 @@ export const AuthProvider = ({ children }) => {
   const [userData, setUserData] = useState(null);
   const navigate = useNavigate();
   const { success, error } = useToast();
+
+  function signInWithGoogle() {
+    console.log("first");
+    return signInWithPopup(auth, googleProvider)
+      .then((result) => {
+        console.log("Google sign-in successful:", result);
+        return result;
+      })
+      .catch((error) => {
+        console.error("Google sign-in error:", error);
+        throw error;
+      });
+  }
+  console.log("second");
 
   // Fetch user data from MongoDB
   const fetchUserData = async (email) => {
@@ -324,6 +338,7 @@ export const AuthProvider = ({ children }) => {
     fetchUserData,
     signIn,
     signUp,
+    signInWithGoogle,
   };
 
   if (loading) {

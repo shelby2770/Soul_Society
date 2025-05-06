@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
+
 import {
   getAuth,
   GoogleAuthProvider,
@@ -33,11 +34,14 @@ setPersistence(auth, browserLocalPersistence)
 
 // Configure Google Auth Provider
 const googleProvider = new GoogleAuthProvider();
-googleProvider.addScope("https://www.googleapis.com/auth/userinfo.email");
-googleProvider.addScope("https://www.googleapis.com/auth/userinfo.profile");
-googleProvider.setCustomParameters({
-  prompt: "select_account",
-  login_hint: "",
-});
+googleProvider.addScope("profile");
+googleProvider.addScope("email");
+// const googleProvider = new GoogleAuthProvider();
+// googleProvider.addScope("https://www.googleapis.com/auth/userinfo.email");
+// googleProvider.addScope("https://www.googleapis.com/auth/userinfo.profile");
+// googleProvider.setCustomParameters({
+//   prompt: "select_account",
+//   login_hint: "",
+// });
 
 export { auth, googleProvider };

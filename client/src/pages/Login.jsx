@@ -5,6 +5,7 @@ import { FcGoogle } from "react-icons/fc";
 import { auth, googleProvider } from "../config/firebase";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { useToast } from "../contexts/ToastContext";
+import { useAuth } from "../contexts/AuthContext";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -12,6 +13,8 @@ const Login = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPopupInstructions, setShowPopupInstructions] = useState(false);
+  const { signInWithGoogle, currentUser } = useAuth();
+
   const navigate = useNavigate();
   const { success, error: showError } = useToast();
 
@@ -34,52 +37,62 @@ const Login = () => {
   };
 
   const handleGoogleLogin = async () => {
-    setError("");
-    setLoading(true);
-    setShowPopupInstructions(false);
-
     try {
-      // Check if popups are blocked
-      const popupTest = window.open("", "_blank", "width=1,height=1");
-      if (!popupTest) {
-        setShowPopupInstructions(true);
-        throw new Error("popup-blocked");
-      }
-      popupTest.close();
-
-      const result = await signInWithPopup(auth, googleProvider);
-      if (result.user) {
-        success("Login successful!");
-        setTimeout(() => {
-          navigate("/");
-        }, 1000);
-      }
+      setError("");
+      setLoading(true);
+      await signInWithGoogle();
     } catch (error) {
-      console.error("Google Sign-In Error Details:", {
-        code: error.code,
-        message: error.message,
-      });
-
-      let errorMessage = "Failed to sign in with Google";
-      if (
-        error.code === "auth/popup-blocked" ||
-        error.message === "popup-blocked"
-      ) {
-        errorMessage =
-          "Please enable popups for this site to sign in with Google.";
-        setShowPopupInstructions(true);
-      } else if (error.code === "auth/popup-closed-by-user") {
-        errorMessage = "Sign-in was cancelled. Please try again.";
-      } else if (error.code === "auth/configuration-not-found") {
-        errorMessage =
-          "Google Sign-In is not properly configured. Please contact support.";
-      }
-
-      setError(errorMessage);
-      showError(errorMessage);
+      console.error("Google sign in error:", error);
+      setError("Failed to sign in with Google: " + error.message);
     } finally {
       setLoading(false);
     }
+    // setError("");
+    // setLoading(true);
+    // setShowPopupInstructions(false);
+
+    // try {
+    //   // Check if popups are blocked
+    //   const popupTest = window.open("", "_blank", "width=1,height=1");
+    //   if (!popupTest) {
+    //     setShowPopupInstructions(true);
+    //     throw new Error("popup-blocked");
+    //   }
+    //   popupTest.close();
+
+    //   const result = await signInWithPopup(auth, googleProvider);
+    //   if (result.user) {
+    //     success("Login successful!");
+    //     setTimeout(() => {
+    //       navigate("/");
+    //     }, 1000);
+    //   }
+    // } catch (error) {
+    //   console.error("Google Sign-In Error Details:", {
+    //     code: error.code,
+    //     message: error.message,
+    //   });
+
+    //   let errorMessage = "Failed to sign in with Google";
+    //   if (
+    //     error.code === "auth/popup-blocked" ||
+    //     error.message === "popup-blocked"
+    //   ) {
+    //     errorMessage =
+    //       "Please enable popups for this site to sign in with Google.";
+    //     setShowPopupInstructions(true);
+    //   } else if (error.code === "auth/popup-closed-by-user") {
+    //     errorMessage = "Sign-in was cancelled. Please try again.";
+    //   } else if (error.code === "auth/configuration-not-found") {
+    //     errorMessage =
+    //       "Google Sign-In is not properly configured. Please contact support.";
+    //   }
+
+    //   setError(errorMessage);
+    //   showError(errorMessage);
+    // } finally {
+    //   setLoading(false);
+    // }
   };
 
   return (
