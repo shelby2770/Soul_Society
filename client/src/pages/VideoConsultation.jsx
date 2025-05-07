@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
-import VideoCall from "../components/VideoCall";
 import axios from "axios";
+import VideoCall from "../components/VideoCall";
+import { API_URL } from "../utils/api";
 
 const VideoConsultation = () => {
   const { appointmentId } = useParams();
@@ -15,9 +16,6 @@ const VideoConsultation = () => {
   const [appointment, setAppointment] = useState(null);
   const [remoteUser, setRemoteUser] = useState(null);
   const [isDoctor, setIsDoctor] = useState(false);
-
-  const API_URL =
-    import.meta.env.VITE_API_URL || "http://soul-society.onrender.com";
 
   useEffect(() => {
     const fetchAppointmentDetails = async () => {

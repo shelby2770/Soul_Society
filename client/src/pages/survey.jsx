@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useToast } from "../contexts/ToastContext";
 import axios from "axios";
 import questions from "../assets/question";
+import { API_URL } from "../utils/api";
 
 const Survey = () => {
   const { user, userData } = useAuth();
-  const API_URL =
-    import.meta.env.VITE_API_URL || "http://soul-society.onrender.com";
 
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState(Array(questions.length).fill(null));

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
 import { useAuth } from "../contexts/AuthContext";
+import { useToast } from "../contexts/ToastContext";
+import axios from "axios";
+import { API_URL } from "../utils/api";
 
 const PatientDashboard = ({ surveyScore: propSurveyScore }) => {
   const { user, userData } = useAuth();
-  const API_URL =
-    import.meta.env.VITE_API_URL || "http://soul-society.onrender.com";
 
   // State for survey data - use prop value or check localStorage
   const [surveyScore, setSurveyScore] = useState(() => {

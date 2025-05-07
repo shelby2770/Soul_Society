@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import axios from "axios";
+import { API_URL } from "../utils/api";
 
 const PatientAppointments = () => {
   const { user, userData } = useAuth();
@@ -13,9 +14,6 @@ const PatientAppointments = () => {
   const [loading, setLoading] = useState(true);
   const [fetchAttempt, setFetchAttempt] = useState(0);
   const [fetchError, setFetchError] = useState(null);
-
-  const API_URL =
-    import.meta.env.VITE_API_URL || "http://soul-society.onrender.com";
 
   useEffect(() => {
     // Redirect if not logged in or not a patient

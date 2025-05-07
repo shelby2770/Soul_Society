@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import axios from "axios";
+import { API_URL } from "../utils/api";
 
 const NotificationContext = createContext();
 
@@ -18,8 +19,6 @@ export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const { user, userData } = useAuth();
-  const API_URL =
-    import.meta.env.VITE_API_URL || "http://soul-society.onrender.com";
 
   // Get auth token
   const getAuthHeader = () => {

@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Button } from "../components/ui/button";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "../contexts/ToastContext";
+import { API_URL } from "../utils/api";
 
 const AssignedPatients = () => {
   const [patients, setPatients] = useState([]);
@@ -19,8 +21,6 @@ const AssignedPatients = () => {
 
     const fetchPatients = async () => {
       try {
-        const API_URL =
-          import.meta.env.VITE_API_URL || "http://soul-society.onrender.com";
         const response = await axios.get(
           `${API_URL}/api/users/doctor/${user.email}/patients`
         );

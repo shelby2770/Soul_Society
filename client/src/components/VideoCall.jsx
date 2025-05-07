@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
+import axios from "axios";
+import { API_URL } from "../utils/api";
 import { io } from "socket.io-client";
 
 const VideoCall = ({ appointmentId, isDoctor, remoteName, onEndCall }) => {
@@ -18,9 +20,6 @@ const VideoCall = ({ appointmentId, isDoctor, remoteName, onEndCall }) => {
   const remoteVideoRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const socketRef = useRef(null);
-
-  const API_URL =
-    import.meta.env.VITE_API_URL || "http://soul-society.onrender.com";
 
   // Enhanced ICE server configuration
   const iceServers = {
