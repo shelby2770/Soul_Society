@@ -142,18 +142,7 @@ const Navbar = () => {
             >
               About
             </Link>
-            {user && userData?.type === "doctor" ? (
-              <Link
-                to="/assigned-patients"
-                className={`text-sm transition-colors h-10 leading-loose ${
-                  location.pathname === "/assigned-patients"
-                    ? "text-blue-700 font-medium"
-                    : "text-gray-900 hover:text-blue-600"
-                }`}
-              >
-                Assigned Patients
-              </Link>
-            ) : (
+            {user && userData?.type === "doctor" ? null : (
               <Link
                 to="/doctors"
                 className={`text-sm transition-colors h-10 leading-loose ${
@@ -419,19 +408,7 @@ const Navbar = () => {
               >
                 About
               </Link>
-              {user && userData?.type === "doctor" ? (
-                <Link
-                  to="/assigned-patients"
-                  className={`block px-3 py-2 rounded-md text-base font-medium ${
-                    location.pathname === "/assigned-patients"
-                      ? "text-blue-700 bg-blue-50"
-                      : "text-gray-900 hover:text-blue-600 hover:bg-gray-50"
-                  }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Assigned Patients
-                </Link>
-              ) : (
+              {user && userData?.type === "doctor" ? null : (
                 <Link
                   to="/doctors"
                   className={`block px-3 py-2 rounded-md text-base font-medium ${
