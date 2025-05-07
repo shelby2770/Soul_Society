@@ -3,6 +3,7 @@ import axios from "axios";
 import { useAuth } from "../contexts/AuthContext";
 import { FiBell } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "../utils/api";
 
 const Notifications = () => {
   const { user, userData } = useAuth();
@@ -12,9 +13,6 @@ const Notifications = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-
-  const API_URL =
-    import.meta.env.VITE_API_URL || "http://soul-society.onrender.com";
 
   useEffect(() => {
     if (user && userData?.id) {

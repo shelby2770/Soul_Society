@@ -5,6 +5,7 @@ import axios from "axios";
 import { Button } from "../components/ui/button";
 import io from "socket.io-client";
 import { useToast } from "../contexts/ToastContext";
+import { API_URL } from "../utils/api";
 
 const Chat = () => {
   const { user, userData } = useAuth();
@@ -22,8 +23,8 @@ const Chat = () => {
   const messagesContainerRef = useRef(null); // Ref for the messages container
   const socketRef = useRef(null); // Ref for the socket connection
   const [activeUsers, setActiveUsers] = useState([]); // Track online users
-  const API_URL =
-    import.meta.env.VITE_API_URL || "http://soul-society.onrender.com";
+  const [currentConversation, setCurrentConversation] = useState(null);
+  const [conversationLoading, setConversationLoading] = useState(false);
 
   // Auto-scroll to bottom of messages container - wrapped in useCallback
   const scrollToBottom = useCallback(() => {
