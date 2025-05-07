@@ -14,4 +14,9 @@ export default defineConfig({
         "X-Requested-With, content-type, Authorization",
     },
   },
+  build: {
+    outDir: "dist",
+    emptyOutDir: true,
+    sourcemap: false,
+  },
 });

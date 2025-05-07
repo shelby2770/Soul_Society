@@ -23,7 +23,14 @@ const app = express();
 
 // Middleware
 app.use(express.json());
-app.use(cors());
+// Updated CORS configuration for Vercel deployment
+app.use(
+  cors({
+    origin: "*", // Allow all origins
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  })
+);
 app.use(express.urlencoded({ extended: true }));
 
 // Welcome route

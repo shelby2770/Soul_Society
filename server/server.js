@@ -21,10 +21,10 @@ async function server() {
     // Create HTTP server
     const httpServer = createServer(app);
 
-    // Initialize Socket.IO
+    // Initialize Socket.IO with updated CORS for Vercel
     const io = new Server(httpServer, {
       cors: {
-        origin: ["http://localhost:5173", "http://localhost:5174"], // Allow both client origins
+        origin: "*", // Allow all origins for Vercel deployment
         methods: ["GET", "POST"],
         credentials: true,
       },
