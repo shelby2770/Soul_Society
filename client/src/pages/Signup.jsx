@@ -6,6 +6,7 @@ import { useToast } from "../contexts/ToastContext";
 import { auth } from "../config/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import axios from "axios";
+import { API_URL } from "../utils/api";
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -193,13 +194,10 @@ const SignUp = () => {
       console.log("Firebase user created:", userCredential.user);
 
       // Then make API call to backend for signup
-      const signupResponse = await axios.post(
-        "http://localhost:5000/api/auth/signup",
-        {
-          ...userData,
-          firebaseId: userCredential.user.uid,
-        }
-      );
+      const signupResponse = await axios.post(`${API_URL}/api/auth/signup`, {
+        ...userData,
+        firebaseId: userCredential.user.uid,
+      });
 
       if (signupResponse.data.success) {
         // Store the token in localStorage

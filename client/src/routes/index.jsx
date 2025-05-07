@@ -4,7 +4,7 @@ import Home from "../pages/Home";
 import About from "../pages/About";
 import Contact from "../pages/Contact";
 import NotFound from "../pages/NotFound";
-import SignUp from "../pages/SignUp";
+import SignUp from "../pages/Signup";
 import Login from "../pages/Login";
 import Doctors from "../pages/Doctors";
 import Profile from "../pages/Profile";
