@@ -19,7 +19,8 @@ const VideoCall = ({ appointmentId, isDoctor, remoteName, onEndCall }) => {
   const peerConnectionRef = useRef(null);
   const socketRef = useRef(null);
 
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+  const API_URL =
+    import.meta.env.VITE_API_URL || "http://soul-society.onrender.com";
 
   // Enhanced ICE server configuration
   const iceServers = {

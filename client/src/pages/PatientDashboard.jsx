@@ -5,7 +5,8 @@ import { useAuth } from "../contexts/AuthContext";
 
 const PatientDashboard = ({ surveyScore: propSurveyScore }) => {
   const { user, userData } = useAuth();
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+  const API_URL =
+    import.meta.env.VITE_API_URL || "http://soul-society.onrender.com";
 
   // State for survey data - use prop value or check localStorage
   const [surveyScore, setSurveyScore] = useState(() => {

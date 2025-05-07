@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { FcGoogle } from "react-icons/fc";
+import { auth, googleProvider } from "../config/firebase";
+import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { useToast } from "../contexts/ToastContext";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -11,7 +13,7 @@ const Login = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPopupInstructions, setShowPopupInstructions] = useState(false);
-  const { signInWithGoogle, signIn } = useAuth();
+  const { signInWithGoogle, currentUser } = useAuth();
 
   const navigate = useNavigate();
   const { success, error: showError } = useToast();
@@ -21,13 +23,11 @@ const Login = () => {
     setError("");
     setLoading(true);
     try {
-      const result = await signIn(email, password);
-      if (result) {
-        success("Login successful!");
-      } else {
-        setError("Login failed. Please check your credentials.");
-        showError("Login failed. Please check your credentials.");
-      }
+      await signInWithEmailAndPassword(auth, email, password);
+      success("Login successful!");
+      setTimeout(() => {
+        navigate("/");
+      }, 1000);
     } catch (error) {
       setError(error.message);
       showError("Login failed. Please check your credentials.");

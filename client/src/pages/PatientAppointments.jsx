@@ -14,7 +14,8 @@ const PatientAppointments = () => {
   const [fetchAttempt, setFetchAttempt] = useState(0);
   const [fetchError, setFetchError] = useState(null);
 
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+  const API_URL =
+    import.meta.env.VITE_API_URL || "http://soul-society.onrender.com";
 
   useEffect(() => {
     // Redirect if not logged in or not a patient

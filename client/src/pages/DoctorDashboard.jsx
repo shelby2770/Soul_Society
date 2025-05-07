@@ -44,7 +44,8 @@ const DoctorDashboard = () => {
   const [appointmentDate, setAppointmentDate] = useState("");
   const [appointmentTime, setAppointmentTime] = useState("");
 
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+  const API_URL =
+    import.meta.env.VITE_API_URL || "http://soul-society.onrender.com";
 
   // Check if appointment is today and upcoming (not in the past)
   const isUpcomingToday = (date, time) => {

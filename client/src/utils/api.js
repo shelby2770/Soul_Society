@@ -1,6 +1,6 @@
 import axios from "axios";
 
-// Get the API URL from environment variables or use the Render backend URL
+// Get the API URL from environment variables or use a default
 const API_URL =
   import.meta.env.VITE_API_URL || "https://soul-society.onrender.com";
 

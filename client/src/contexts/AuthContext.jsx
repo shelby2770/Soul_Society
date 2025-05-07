@@ -18,7 +18,6 @@ import { auth, googleProvider } from "../config/firebase";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "./ToastContext";
 import axios from "axios";
-import { API_URL } from "../utils/api";
 
 const AuthContext = createContext();
 
@@ -59,6 +58,8 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
+      const API_URL =
+        import.meta.env.VITE_API_URL || "http://soul-society.onrender.com";
       console.log(
         "Fetching user data from:",
         `${API_URL}/api/users/email/${email}`
@@ -146,6 +147,8 @@ export const AuthProvider = ({ children }) => {
       }
 
       // Update in MongoDB
+      const API_URL =
+        import.meta.env.VITE_API_URL || "http://soul-society.onrender.com";
       console.log(
         "Updating user profile at:",
         `${API_URL}/api/users/email/${user.email}`
@@ -230,7 +233,7 @@ export const AuthProvider = ({ children }) => {
 
       // Get JWT token from backend
       try {
-        const response = await axios.post(`${API_URL}/api/auth/login`, {
+        const response = await axios.post("/api/auth/login", {
           email,
           password,
         });
@@ -285,7 +288,7 @@ export const AuthProvider = ({ children }) => {
 
       // Get JWT token from backend
       try {
-        const response = await axios.post(`${API_URL}/api/auth/signup`, {
+        const response = await axios.post("/api/auth/signup", {
           email,
           password,
           name,

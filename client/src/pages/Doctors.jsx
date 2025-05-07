@@ -40,7 +40,8 @@ const Doctors = () => {
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
-        const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+        const API_URL =
+          import.meta.env.VITE_API_URL || "http://soul-society.onrender.com";
         console.log("Fetching doctors from:", `${API_URL}/api/users/doctors`);
 
         const response = await axios.get(`${API_URL}/api/users/doctors`);
