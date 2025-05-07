@@ -61,3 +61,5 @@ This guide explains how to deploy the Soul Society application on Vercel.
 - If you encounter CORS issues, verify the origin settings in `server/app.js` and `server/server.js`
 - For Socket.IO connection issues, check the client's connection URL and make sure it matches your deployed backend URL
 - If you see 504 Gateway Timeout errors, consider optimizing your API endpoints or implementing serverless functions with proper timeout settings
+
+
