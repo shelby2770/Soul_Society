@@ -4,6 +4,7 @@ import { Button } from "../components/ui/button";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import BookAppointmentModal from "../components/modals/BookAppointmentModal";
+import { API_URL } from "../utils/api";
 
 const Doctors = () => {
   const [doctors, setDoctors] = useState([]);
@@ -40,8 +41,6 @@ const Doctors = () => {
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
-        const API_URL =
-          import.meta.env.VITE_API_URL || "http://soul-society.onrender.com";
         console.log("Fetching doctors from:", `${API_URL}/api/users/doctors`);
 
         const response = await axios.get(`${API_URL}/api/users/doctors`);

@@ -2,6 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
+import { API_URL } from "../../utils/api";
 
 const BookAppointmentModal = ({ isOpen, onClose, doctor }) => {
   const { user, userData } = useAuth();
@@ -10,9 +11,6 @@ const BookAppointmentModal = ({ isOpen, onClose, doctor }) => {
   const [appointmentDate, setAppointmentDate] = useState("");
   const [appointmentTime, setAppointmentTime] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const API_URL =
-    import.meta.env.VITE_API_URL || "http://soul-society.onrender.com";
 
   const handleSubmit = async (e) => {
     e.preventDefault();

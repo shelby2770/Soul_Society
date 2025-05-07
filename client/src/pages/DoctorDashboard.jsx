@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../contexts/AuthContext";
 import { Link } from "react-router-dom";
+import { API_URL } from "../utils/api";
 
 const DoctorDashboard = () => {
   const { user, userData } = useAuth();
@@ -43,9 +44,6 @@ const DoctorDashboard = () => {
   const [appointmentType, setAppointmentType] = useState("Online");
   const [appointmentDate, setAppointmentDate] = useState("");
   const [appointmentTime, setAppointmentTime] = useState("");
-
-  const API_URL =
-    import.meta.env.VITE_API_URL || "http://soul-society.onrender.com";
 
   // Check if appointment is today and upcoming (not in the past)
   const isUpcomingToday = (date, time) => {
