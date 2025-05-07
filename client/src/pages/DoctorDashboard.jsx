@@ -457,7 +457,8 @@ const DoctorDashboard = () => {
                       Reschedule
                     </button>
                     {appt.type === "Online" &&
-                      appt.status === "Accepted" &&
+                      (appt.status === "Accepted" ||
+                        appt.status === "Rescheduled") &&
                       isTimeToJoinCall(appt.date, appt.time) && (
                         <Link
                           to={`/video-consultation/${appt._id}`}

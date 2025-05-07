@@ -427,7 +427,8 @@ const PatientAppointments = () => {
 
                         <div className="flex flex-col space-y-2">
                           {appointment.type === "Online" &&
-                            appointment.status === "Accepted" &&
+                            (appointment.status === "Accepted" ||
+                              appointment.status === "Rescheduled") &&
                             isTimeToJoinCall(
                               appointment.date,
                               appointment.time
@@ -532,7 +533,8 @@ const PatientAppointments = () => {
 
                           <div className="flex flex-col space-y-2">
                             {appointment.type === "Online" &&
-                              appointment.status === "Accepted" &&
+                              (appointment.status === "Accepted" ||
+                                appointment.status === "Rescheduled") &&
                               isTimeToJoinCall(
                                 appointment.date,
                                 appointment.time

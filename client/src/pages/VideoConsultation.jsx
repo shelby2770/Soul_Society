@@ -84,6 +84,15 @@ const VideoConsultation = () => {
             return;
           }
 
+          // Check if appointment status is valid for video consultation
+          if (appt.status !== "Accepted" && appt.status !== "Rescheduled") {
+            showError(
+              "This appointment is not confirmed for video consultation"
+            );
+            navigate("/");
+            return;
+          }
+
           // Check if it's the right time to join the call
           const canJoinCall = isTimeToJoinCall(appt.date, appt.time);
           if (!canJoinCall) {
