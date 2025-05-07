@@ -7,7 +7,7 @@ import questions from "../assets/question";
 const Survey = () => {
   const { user, userData } = useAuth();
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
-  
+
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState(Array(questions.length).fill(null));
   const [selectedOption, setSelectedOption] = useState(null);
@@ -26,7 +26,7 @@ const Survey = () => {
       score,
       category: questions[currentQuestion].category,
       question: questions[currentQuestion].question,
-      answer: questions[currentQuestion].options[index]
+      answer: questions[currentQuestion].options[index],
     };
     setAnswers(updatedAnswers);
   };
@@ -36,7 +36,7 @@ const Survey = () => {
       alert("Please select an answer before proceeding.");
       return;
     }
-    
+
     if (currentQuestion < questions.length - 1) {
       setSelectedOption(null);
       setCurrentQuestion(currentQuestion + 1);
@@ -45,24 +45,29 @@ const Survey = () => {
 
   const handlePrevious = () => {
     if (currentQuestion > 0) {
-      setSelectedOption(answers[currentQuestion - 1] ? 
-        questions[currentQuestion - 1].options.indexOf(answers[currentQuestion - 1].answer) : null);
+      setSelectedOption(
+        answers[currentQuestion - 1]
+          ? questions[currentQuestion - 1].options.indexOf(
+              answers[currentQuestion - 1].answer
+            )
+          : null
+      );
       setCurrentQuestion(currentQuestion - 1);
     }
   };
 
   const calculateCategoryScores = (answersArray) => {
     const categories = {};
-    
+
     // Collect scores by category
-    answersArray.forEach(answer => {
+    answersArray.forEach((answer) => {
       if (answer && answer.category) {
         if (!categories[answer.category]) {
           categories[answer.category] = {
             scores: [],
             total: 0,
             average: 0,
-            count: 0
+            count: 0,
           };
         }
         categories[answer.category].scores.push(answer.score);
@@ -70,13 +75,13 @@ const Survey = () => {
         categories[answer.category].count += 1;
       }
     });
-    
+
     // Calculate averages
-    Object.keys(categories).forEach(category => {
-      categories[category].average = 
+    Object.keys(categories).forEach((category) => {
+      categories[category].average =
         categories[category].total / categories[category].count;
     });
-    
+
     return categories;
   };
 
@@ -88,24 +93,26 @@ const Survey = () => {
         type: "psychiatrist",
         urgency: "immediate",
         score: totalScore,
-        severityLevel: "severe"
+        severityLevel: "severe",
       };
     }
-    
+
     // Check anxiety levels
-    const hasHighAnxiety = categoryScores.anxiety && categoryScores.anxiety.average > 3.5;
-    
+    const hasHighAnxiety =
+      categoryScores.anxiety && categoryScores.anxiety.average > 3.5;
+
     // Check mood indicators
-    const hasDepression = categoryScores.mood && categoryScores.mood.average > 3.5;
-    
+    const hasDepression =
+      categoryScores.mood && categoryScores.mood.average > 3.5;
+
     // Determine recommendation based on total score and specific indicators
-    if (totalScore > 50 || hasHighAnxiety && hasDepression) {
+    if (totalScore > 50 || (hasHighAnxiety && hasDepression)) {
       return {
         text: "You need a Psychiatrist for professional evaluation and possible medication.",
         type: "psychiatrist",
         urgency: "high",
         score: totalScore,
-        severityLevel: "moderate-severe"
+        severityLevel: "moderate-severe",
       };
     } else if (totalScore > 40 || hasDepression) {
       return {
@@ -113,7 +120,7 @@ const Survey = () => {
         type: "psychologist",
         urgency: "medium",
         score: totalScore,
-        severityLevel: "moderate"
+        severityLevel: "moderate",
       };
     } else if (totalScore > 30 || hasHighAnxiety) {
       return {
@@ -121,7 +128,7 @@ const Survey = () => {
         type: "counselor",
         urgency: "low",
         score: totalScore,
-        severityLevel: "mild-moderate"
+        severityLevel: "mild-moderate",
       };
     } else if (totalScore > 20) {
       return {
@@ -129,7 +136,7 @@ const Survey = () => {
         type: "therapist",
         urgency: "low",
         score: totalScore,
-        severityLevel: "mild"
+        severityLevel: "mild",
       };
     } else {
       return {
@@ -137,7 +144,7 @@ const Survey = () => {
         type: "none",
         urgency: "none",
         score: totalScore,
-        severityLevel: "normal"
+        severityLevel: "normal",
       };
     }
   };
@@ -145,7 +152,7 @@ const Survey = () => {
   const handleSubmit = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       // Check if all questions are answered
       if (answers.includes(null)) {
@@ -153,19 +160,19 @@ const Survey = () => {
         setLoading(false);
         return;
       }
-      
+
       // Calculate total score
       const totalScore = answers.reduce((sum, answer) => sum + answer.score, 0);
-      
+
       // Calculate category scores
       const categoryScores = calculateCategoryScores(answers);
-      
+
       // Get recommendation based on scores
       const result = getRecommendation(totalScore, categoryScores);
-      
+
       // Set recommendation message
       setRecommendation(result.text);
-      
+
       // Prepare survey result
       const surveyData = {
         userId: userData?._id || user?.uid,
@@ -173,29 +180,33 @@ const Survey = () => {
         answers: answers,
         categoryScores,
         recommendation: result,
-        completedAt: new Date().toISOString()
+        completedAt: new Date().toISOString(),
       };
-      
+
       // Save to state
       setSurveyResult(surveyData);
-      
+
       // Save to backend if user is authenticated
       if (userData?._id || user?.uid) {
         try {
-          const response = await axios.post(`${API_URL}/api/surveys`, surveyData, {
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
+          const response = await axios.post(
+            `${API_URL}/api/surveys`,
+            surveyData,
+            {
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
             }
-          });
-          
+          );
+
           console.log("Survey saved to backend:", response.data);
         } catch (err) {
           console.error("Error saving survey:", err);
           // Continue even if saving to backend fails
         }
       }
-      
+
       setSubmitted(true);
     } catch (err) {
       console.error("Error processing survey:", err);
@@ -208,8 +219,11 @@ const Survey = () => {
   const goBackToDashboard = () => {
     // If we have survey results, pass the score to dashboard
     if (surveyResult) {
-      localStorage.setItem('lastSurveyScore', surveyResult.score);
-      localStorage.setItem('lastSurveyRecommendation', JSON.stringify(surveyResult.recommendation));
+      localStorage.setItem("lastSurveyScore", surveyResult.score);
+      localStorage.setItem(
+        "lastSurveyRecommendation",
+        JSON.stringify(surveyResult.recommendation)
+      );
     }
     navigate("/");
   };
@@ -225,7 +239,7 @@ const Survey = () => {
             <h1 className="text-3xl font-bold text-center text-indigo-700 mb-6">
               Survey Completed
             </h1>
-            
+
             {error ? (
               <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6">
                 {error}
@@ -238,14 +252,18 @@ const Survey = () => {
                       {surveyResult.score}
                     </span>
                   </div>
-                  <h2 className="text-xl font-semibold text-gray-800">Your Mental Health Score</h2>
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    Your Mental Health Score
+                  </h2>
                   <p className="text-gray-500 text-sm mt-1">
                     Severity: {surveyResult.recommendation.severityLevel}
                   </p>
                 </div>
-                
+
                 <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
-                  <h3 className="font-semibold text-indigo-800 mb-2">Recommendation:</h3>
+                  <h3 className="font-semibold text-indigo-800 mb-2">
+                    Recommendation:
+                  </h3>
                   <p className="text-gray-700">{recommendation}</p>
                   {surveyResult.recommendation.urgency === "immediate" && (
                     <p className="text-red-600 font-semibold mt-2">
@@ -253,40 +271,56 @@ const Survey = () => {
                     </p>
                   )}
                 </div>
-                
+
                 <div>
-                  <h3 className="font-semibold text-gray-800 mb-3">Category Breakdown:</h3>
+                  <h3 className="font-semibold text-gray-800 mb-3">
+                    Category Breakdown:
+                  </h3>
                   <div className="space-y-3">
-                    {Object.entries(surveyResult.categoryScores).map(([category, data]) => (
-                      <div key={category}>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-sm font-medium text-gray-700 capitalize">{category}</span>
-                          <span className="text-sm font-medium text-indigo-600">
-                            {data.average.toFixed(1)} / 5
-                          </span>
+                    {Object.entries(surveyResult.categoryScores).map(
+                      ([category, data]) => (
+                        <div key={category}>
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm font-medium text-gray-700 capitalize">
+                              {category}
+                            </span>
+                            <span className="text-sm font-medium text-indigo-600">
+                              {data.average.toFixed(1)} / 5
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2.5">
+                            <div
+                              className={`h-2.5 rounded-full ${
+                                data.average < 2.0
+                                  ? "bg-green-500"
+                                  : data.average < 3.5
+                                  ? "bg-yellow-500"
+                                  : "bg-red-500"
+                              }`}
+                              style={{ width: `${(data.average / 5) * 100}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div 
-                            className={`h-2.5 rounded-full ${
-                              data.average > 3.5 ? 'bg-red-500' : 
-                              data.average > 2.5 ? 'bg-yellow-500' : 'bg-green-500'
-                            }`}
-                            style={{ width: `${(data.average / 5) * 100}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    )}
                   </div>
                 </div>
 
                 <div className="pt-4 border-t border-gray-200">
-                  <h3 className="font-semibold text-gray-800 mb-3">Next Steps:</h3>
+                  <h3 className="font-semibold text-gray-800 mb-3">
+                    Next Steps:
+                  </h3>
                   <ul className="list-disc pl-5 space-y-2 text-gray-600">
                     <li>Your results have been saved to your profile</li>
                     <li>Recommended doctors are available on your dashboard</li>
-                    <li>You can book an appointment with a specialist from your dashboard</li>
+                    <li>
+                      You can book an appointment with a specialist from your
+                      dashboard
+                    </li>
                     {surveyResult.recommendation.urgency !== "none" && (
-                      <li>Consider speaking to a mental health professional soon</li>
+                      <li>
+                        Consider speaking to a mental health professional soon
+                      </li>
                     )}
                   </ul>
                 </div>
@@ -296,7 +330,7 @@ const Survey = () => {
                 Processing your results...
               </p>
             )}
-            
+
             <div className="mt-8 flex justify-center">
               <button
                 onClick={goBackToDashboard}
@@ -311,11 +345,13 @@ const Survey = () => {
             <h1 className="text-3xl font-bold text-center text-indigo-700 mb-6">
               Mental Health Assessment
             </h1>
-            
+
             {/* Progress bar */}
             <div className="mb-6">
               <div className="flex justify-between text-sm text-gray-500 mb-1">
-                <span>Question {currentQuestion + 1} of {questions.length}</span>
+                <span>
+                  Question {currentQuestion + 1} of {questions.length}
+                </span>
                 <span>{progressPercentage.toFixed(0)}% Complete</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2.5">
@@ -325,17 +361,22 @@ const Survey = () => {
                 />
               </div>
             </div>
-            
+
             <div className="mb-8">
               <h2 className="text-xl font-semibold text-gray-800 mb-5">
                 {questions[currentQuestion].question}
               </h2>
-              
+
               <div className="space-y-3">
                 {questions[currentQuestion].options.map((option, index) => (
                   <button
                     key={index}
-                    onClick={() => handleAnswerSelect(questions[currentQuestion].scores[index], index)}
+                    onClick={() =>
+                      handleAnswerSelect(
+                        questions[currentQuestion].scores[index],
+                        index
+                      )
+                    }
                     className={`w-full text-left p-4 rounded-lg border transition-colors ${
                       selectedOption === index
                         ? "bg-indigo-100 border-indigo-300 text-indigo-800"
@@ -347,7 +388,7 @@ const Survey = () => {
                 ))}
               </div>
             </div>
-            
+
             <div className="flex justify-between">
               <button
                 onClick={handlePrevious}
@@ -356,7 +397,7 @@ const Survey = () => {
               >
                 Previous
               </button>
-              
+
               {currentQuestion === questions.length - 1 ? (
                 <button
                   onClick={handleSubmit}
@@ -365,9 +406,25 @@ const Survey = () => {
                 >
                   {loading ? (
                     <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      <svg
+                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
                       </svg>
                       Processing...
                     </>

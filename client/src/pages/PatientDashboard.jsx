@@ -57,7 +57,15 @@ const PatientDashboard = ({ surveyScore: propSurveyScore }) => {
         }
       } catch (error) {
         console.error("Error fetching latest survey:", error);
-        // Continue with localStorage data if available
+        // Clear survey data if 404 Not Found (user hasn't taken a survey yet)
+        if (error.response && error.response.status === 404) {
+          // Clear any previously stored survey data
+          localStorage.removeItem("lastSurveyScore");
+          localStorage.removeItem("lastSurveyRecommendation");
+          setSurveyScore(null);
+          setRecommendationDetails(null);
+        }
+        // For other errors, keep any localStorage data if available
       }
     };
 

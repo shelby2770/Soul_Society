@@ -33,6 +33,9 @@ async function server() {
     // Track active users by their MongoDB ID
     const activeUsers = new Map();
 
+    // Track video rooms and users in them
+    const videoRooms = new Map();
+
     // Socket.IO connection handler
     io.on("connection", (socket) => {
       console.log(`New client connected: ${socket.id}`);
@@ -69,6 +72,91 @@ async function server() {
         console.log(`Socket ${socket.id} left conversation: ${conversationId}`);
       });
 
+      // Video call handlers
+      socket.on(
+        "join_video_room",
+        ({ appointmentId, userId, name, isDoctor }) => {
+          console.log(
+            `User ${name} (${userId}) joining video room: ${appointmentId}`
+          );
+
+          // Join the socket room
+          socket.join(appointmentId);
+
+          // Initialize room if it doesn't exist
+          if (!videoRooms.has(appointmentId)) {
+            videoRooms.set(appointmentId, new Set());
+          }
+
+          // Add user to the room
+          const room = videoRooms.get(appointmentId);
+          room.add({
+            socketId: socket.id,
+            userId,
+            name,
+            isDoctor,
+          });
+
+          // Notify everyone in the room that this user joined
+          socket.to(appointmentId).emit("user_joined", { userId, name });
+
+          // Send the current users in the room to the joining user
+          socket.emit("room_joined", {
+            users: Array.from(room).map((user) => ({
+              userId: user.userId,
+              name: user.name,
+              isDoctor: user.isDoctor,
+            })),
+          });
+        }
+      );
+
+      // Handle signaling for WebRTC
+      socket.on("offer", ({ appointmentId, offer }) => {
+        console.log(
+          `Received offer from ${socket.id} for room ${appointmentId}`
+        );
+        socket.to(appointmentId).emit("offer", { offer });
+      });
+
+      socket.on("answer", ({ appointmentId, answer }) => {
+        console.log(
+          `Received answer from ${socket.id} for room ${appointmentId}`
+        );
+        socket.to(appointmentId).emit("answer", { answer });
+      });
+
+      socket.on("ice_candidate", ({ appointmentId, candidate }) => {
+        console.log(
+          `Received ICE candidate from ${socket.id} for room ${appointmentId}`
+        );
+        socket.to(appointmentId).emit("ice_candidate", { candidate });
+      });
+
+      socket.on("end_call", ({ appointmentId }) => {
+        console.log(`User ${socket.id} ending call in room ${appointmentId}`);
+        socket.to(appointmentId).emit("call_ended");
+
+        // Remove user from video room
+        if (videoRooms.has(appointmentId)) {
+          const room = videoRooms.get(appointmentId);
+          for (const user of room) {
+            if (user.socketId === socket.id) {
+              room.delete(user);
+              break;
+            }
+          }
+
+          // If room is empty, delete it
+          if (room.size === 0) {
+            videoRooms.delete(appointmentId);
+          }
+        }
+
+        // Leave the socket room
+        socket.leave(appointmentId);
+      });
+
       // Listen for new messages
       socket.on("send_message", (messageData) => {
         console.log(
@@ -92,6 +180,26 @@ async function server() {
       // Handle disconnection
       socket.on("disconnect", () => {
         console.log(`Client disconnected: ${socket.id}`);
+
+        // Clean up video rooms
+        for (const [roomId, room] of videoRooms.entries()) {
+          for (const user of room) {
+            if (user.socketId === socket.id) {
+              room.delete(user);
+              // Notify others in the room
+              socket.to(roomId).emit("user_left", {
+                userId: user.userId,
+                name: user.name,
+              });
+              break;
+            }
+          }
+
+          // If room is empty, delete it
+          if (room.size === 0) {
+            videoRooms.delete(roomId);
+          }
+        }
 
         // Find and remove the disconnected user from active users
         for (const [userId, userData] of activeUsers.entries()) {
